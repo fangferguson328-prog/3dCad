@@ -1,0 +1,739 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup Label="ProjectConfigurations">
+    <ProjectConfiguration Include="Debug|x64">
+      <Configuration>Debug</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release|Win32">
+      <Configuration>Release</Configuration>
+      <Platform>Win32</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Debug|Win32">
+      <Configuration>Debug</Configuration>
+      <Platform>Win32</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release|x64">
+      <Configuration>Release</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+  </ItemGroup>
+  <PropertyGroup Label="Globals">
+    <ProjectGuid>{E657E659-3A2D-37FE-887F-80078829D862}</ProjectGuid>
+    <RootNamespace>3dCad</RootNamespace>
+    <Keyword>QtVS_v304</Keyword>
+    <WindowsTargetPlatformVersion>10.0</WindowsTargetPlatformVersion>
+    <WindowsTargetPlatformMinVersion>10.0.22621.0</WindowsTargetPlatformMinVersion>
+    <QtMsBuild Condition="'$(QtMsBuild)'=='' OR !Exists('$(QtMsBuild)\qt.targets')">$(MSBuildProjectDirectory)\QtMsBuild</QtMsBuild>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'" Label="Configuration">
+    <PlatformToolset>v142</PlatformToolset>
+    <OutputDirectory>release\</OutputDirectory>
+    <ATLMinimizesCRunTimeLibraryUsage>false</ATLMinimizesCRunTimeLibraryUsage>
+    <CharacterSet>NotSet</CharacterSet>
+    <ConfigurationType>Application</ConfigurationType>
+    <IntermediateDirectory>release\</IntermediateDirectory>
+    <PrimaryOutput>3dCad</PrimaryOutput>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" Label="Configuration">
+    <PlatformToolset>v142</PlatformToolset>
+    <OutputDirectory>release\</OutputDirectory>
+    <ATLMinimizesCRunTimeLibraryUsage>false</ATLMinimizesCRunTimeLibraryUsage>
+    <CharacterSet>NotSet</CharacterSet>
+    <ConfigurationType>Application</ConfigurationType>
+    <IntermediateDirectory>release\</IntermediateDirectory>
+    <PrimaryOutput>3dCad</PrimaryOutput>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">
+    <PlatformToolset>v142</PlatformToolset>
+    <OutputDirectory>debug\</OutputDirectory>
+    <ATLMinimizesCRunTimeLibraryUsage>false</ATLMinimizesCRunTimeLibraryUsage>
+    <CharacterSet>NotSet</CharacterSet>
+    <ConfigurationType>Application</ConfigurationType>
+    <IntermediateDirectory>debug\</IntermediateDirectory>
+    <PrimaryOutput>3dCad</PrimaryOutput>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="Configuration">
+    <PlatformToolset>v142</PlatformToolset>
+    <OutputDirectory>debug\</OutputDirectory>
+    <ATLMinimizesCRunTimeLibraryUsage>false</ATLMinimizesCRunTimeLibraryUsage>
+    <CharacterSet>NotSet</CharacterSet>
+    <ConfigurationType>Application</ConfigurationType>
+    <IntermediateDirectory>debug\</IntermediateDirectory>
+    <PrimaryOutput>3dCad</PrimaryOutput>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
+  <Import Project="$(QtMsBuild)\qt_defaults.props" Condition="Exists('$(QtMsBuild)\qt_defaults.props')" />
+  <PropertyGroup Label="QtSettings" Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
+    <QtInstall>D:\Qt\Qt5.14.2\5.14.2\msvc2017</QtInstall>
+    <QtModules>core;opengl;gui;widgets</QtModules>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" Label="QtSettings">
+    <QtInstall>D:\Qt\Qt5.14.2\5.14.2\msvc2017_64</QtInstall>
+    <QtModules>core;opengl;gui;widgets</QtModules>
+  </PropertyGroup>
+  <PropertyGroup Label="QtSettings" Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
+    <QtInstall>D:\Qt\Qt5.14.2\5.14.2\msvc2017</QtInstall>
+    <QtModules>core;opengl;gui;widgets</QtModules>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="QtSettings">
+    <QtInstall>D:\Qt\Qt5.14.2\5.14.2\msvc2017_64</QtInstall>
+    <QtModules>core;opengl;gui;widgets</QtModules>
+  </PropertyGroup>
+  <Target Name="QtMsBuildNotFound" BeforeTargets="CustomBuild;ClCompile" Condition="!Exists('$(QtMsBuild)\qt.targets') OR !Exists('$(QtMsBuild)\Qt.props')">
+    <Message Importance="High" Text="QtMsBuild: could not locate qt.targets, qt.props; project may not build correctly." />
+  </Target>
+  <ImportGroup Label="ExtensionSettings" />
+  <ImportGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'" Label="PropertySheets">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" />
+    <Import Project="$(QtMsBuild)\Qt.props" />
+  </ImportGroup>
+  <ImportGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" Label="PropertySheets">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" />
+    <Import Project="$(QtMsBuild)\Qt.props" />
+  </ImportGroup>
+  <ImportGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="PropertySheets">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" />
+    <Import Project="$(QtMsBuild)\Qt.props" />
+  </ImportGroup>
+  <ImportGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="PropertySheets">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" />
+    <Import Project="$(QtMsBuild)\Qt.props" />
+  </ImportGroup>
+  <PropertyGroup Label="UserMacros" />
+  <PropertyGroup>
+    <OutDir Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">release\</OutDir>
+    <IntDir Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">release\</IntDir>
+    <TargetName Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">3dCad</TargetName>
+    <TargetName Condition="'$(Configuration)|$(Platform)'=='Release|x64'">3dCad</TargetName>
+    <IgnoreImportLibrary Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">true</IgnoreImportLibrary>
+    <IgnoreImportLibrary Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</IgnoreImportLibrary>
+    <LinkIncremental Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">false</LinkIncremental>
+    <LinkIncremental Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</LinkIncremental>
+    <OutDir Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">debug\</OutDir>
+    <IntDir Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">debug\</IntDir>
+    <TargetName Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">3dCad</TargetName>
+    <TargetName Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">3dCad</TargetName>
+    <IgnoreImportLibrary Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">true</IgnoreImportLibrary>
+    <IgnoreImportLibrary Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</IgnoreImportLibrary>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+    <IncludePath>.\includes\opencv\build\include\opencv2;.\includes\opencv\build\include;.\includes\Intel RealSense SDK 2.0\include;$(IncludePath)</IncludePath>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+    <IncludePath>.\includes\Intel RealSense SDK 2.0\include;.\includes\opencv\build\include\opencv2;.\includes\opencv\build\include;$(IncludePath)</IncludePath>
+  </PropertyGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
+    <ClCompile>
+      <AdditionalIncludeDirectories>.;.\includes\glm;.\includes\glfw\include;.\includes\Intel RealSense SDK 2.0\include;.\includes\robot\32;.\includes\opencv\build\include;.\includes\opencv\build\include\opencv2;.\includes\SDK V2.0\sdk-x64\include;.\includes\SDK V2.0\sdk-x64\libs\x86;release;.\includes\KW_SDK_D_1.0\SDK_1.0\SDK_windows_1.0\lib\CPP;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalOptions>-Zc:rvalueCast -Zc:inline -Zc:strictStrings -Zc:throwingNew -Zc:referenceBinding -Zc:__cplusplus -w34100 -w34189 -w44996 -w44456 -w44457 -w44458 %(AdditionalOptions)</AdditionalOptions>
+      <AssemblerListingLocation>release\</AssemblerListingLocation>
+      <BrowseInformation>false</BrowseInformation>
+      <DebugInformationFormat>None</DebugInformationFormat>
+      <DisableSpecificWarnings>4577;4467;%(DisableSpecificWarnings)</DisableSpecificWarnings>
+      <ExceptionHandling>Sync</ExceptionHandling>
+      <ObjectFileName>release\</ObjectFileName>
+      <Optimization>MaxSpeed</Optimization>
+      <PreprocessorDefinitions>_WINDOWS;UNICODE;_UNICODE;WIN32;_ENABLE_EXTENDED_ALIGNED_STORAGE;QT_DEPRECATED_WARNINGS;_CRT_SECURE_NO_WARNINGS;BUILD_MYDLL;NDEBUG;QT_NO_DEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessToFile>false</PreprocessToFile>
+      <ProgramDataBaseFileName>
+      </ProgramDataBaseFileName>
+      <RuntimeLibrary>MultiThreadedDLL</RuntimeLibrary>
+      <SuppressStartupBanner>true</SuppressStartupBanner>
+      <TreatWChar_tAsBuiltInType>true</TreatWChar_tAsBuiltInType>
+      <WarningLevel>Level3</WarningLevel>
+      <MultiProcessorCompilation>true</MultiProcessorCompilation>
+    </ClCompile>
+    <Link>
+      <AdditionalDependencies>opengl32.lib;.\includes\glfw\lib-vc2015\glfw3dll.lib;.\includes\Intel RealSense SDK 2.0\lib\x86\realsense2.lib;.\includes\robot\32\libharmorobotservice.lib;.\includes\opencv\build\x86\vc17\lib\opencv_world470d.lib;.\includes\opencv\build\x86\vc17\lib\opencv_world470.lib;.\includes\SDK V2.0\sdk-x64\libs\x86\EftSdk.lib;.\includes\SDK V2.0\sdk-x64\libs\x86\log4cpp.lib;.\includes\SDK V2.0\sdk-x64\libs\x86\rlibcpp-bcc.lib;.\includes\SDK V2.0\sdk-x64\libs\x86\rlibcpp-tool.lib;shell32.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalLibraryDirectories>.\includes\glfw\lib-vc2015;.\includes\SDK V2.0\sdk-x64\libs\x86;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalOptions>"/MANIFESTDEPENDENCY:type='win32' name='Microsoft.Windows.Common-Controls' version='6.0.0.0' publicKeyToken='6595b64144ccf1df' language='*' processorArchitecture='*'" %(AdditionalOptions)</AdditionalOptions>
+      <DataExecutionPrevention>true</DataExecutionPrevention>
+      <GenerateDebugInformation>false</GenerateDebugInformation>
+      <IgnoreImportLibrary>true</IgnoreImportLibrary>
+      <LinkIncremental>false</LinkIncremental>
+      <OptimizeReferences>true</OptimizeReferences>
+      <OutputFile>$(OutDir)\3dCad.exe</OutputFile>
+      <RandomizedBaseAddress>true</RandomizedBaseAddress>
+      <SubSystem>Windows</SubSystem>
+      <SuppressStartupBanner>true</SuppressStartupBanner>
+    </Link>
+    <Midl>
+      <DefaultCharType>Unsigned</DefaultCharType>
+      <EnableErrorChecks>None</EnableErrorChecks>
+      <WarningLevel>0</WarningLevel>
+    </Midl>
+    <ResourceCompile>
+      <PreprocessorDefinitions>_WINDOWS;UNICODE;_UNICODE;WIN32;_ENABLE_EXTENDED_ALIGNED_STORAGE;QT_DEPRECATED_WARNINGS;_CRT_SECURE_NO_WARNINGS;BUILD_MYDLL;NDEBUG;QT_NO_DEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+    </ResourceCompile>
+    <QtMoc>
+      <CompilerFlavor>msvc</CompilerFlavor>
+      <Include>./$(Configuration)/moc_predefs.h</Include>
+      <ExecutionDescription>Moc'ing %(Identity)...</ExecutionDescription>
+      <DynamicSource>output</DynamicSource>
+      <QtMocDir>$(Configuration)</QtMocDir>
+      <QtMocFileName>moc_%(Filename).cpp</QtMocFileName>
+    </QtMoc>
+    <QtRcc>
+      <InitFuncName>resources</InitFuncName>
+      <Compression>default</Compression>
+      <ExecutionDescription>Rcc'ing %(Identity)...</ExecutionDescription>
+      <QtRccDir>$(Configuration)</QtRccDir>
+      <QtRccFileName>qrc_%(Filename).cpp</QtRccFileName>
+    </QtRcc>
+    <QtUic>
+      <ExecutionDescription>Uic'ing %(Identity)...</ExecutionDescription>
+      <QtUicDir>$(ProjectDir)</QtUicDir>
+      <QtUicFileName>ui_%(Filename).h</QtUicFileName>
+    </QtUic>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+    <ClCompile>
+      <AdditionalIncludeDirectories>.;.\includes\glm;.\includes\glfw\include;.\includes\Intel RealSense SDK 2.0\include;.\includes\opencv\build\include;.\includes\opencv\build\include\opencv2;.\includes\SDK V2.5\sdk-x64\include;release;.\includes\KW_SDK_D_1.0\SDK_1.0\SDK_windows_1.0\lib\CPP;.\includes\robot\64;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalOptions>-Zc:rvalueCast -Zc:inline -Zc:strictStrings -Zc:throwingNew -Zc:referenceBinding -Zc:__cplusplus -w34100 -w34189 -w44996 -w44456 -w44457 -w44458 %(AdditionalOptions)</AdditionalOptions>
+      <AssemblerListingLocation>release\</AssemblerListingLocation>
+      <BrowseInformation>false</BrowseInformation>
+      <DebugInformationFormat>None</DebugInformationFormat>
+      <DisableSpecificWarnings>4577;4467;%(DisableSpecificWarnings)</DisableSpecificWarnings>
+      <ExceptionHandling>Sync</ExceptionHandling>
+      <ObjectFileName>release\</ObjectFileName>
+      <Optimization>MaxSpeed</Optimization>
+      <PreprocessorDefinitions>_WINDOWS;UNICODE;_UNICODE;WIN32;_ENABLE_EXTENDED_ALIGNED_STORAGE;QT_DEPRECATED_WARNINGS;_CRT_SECURE_NO_WARNINGS;BUILD_MYDLL;NDEBUG;QT_NO_DEBUG;WIN32_LEAN_AND_MEAN;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessToFile>false</PreprocessToFile>
+      <ProgramDataBaseFileName>
+      </ProgramDataBaseFileName>
+      <RuntimeLibrary>MultiThreadedDLL</RuntimeLibrary>
+      <SuppressStartupBanner>true</SuppressStartupBanner>
+      <TreatWChar_tAsBuiltInType>true</TreatWChar_tAsBuiltInType>
+      <WarningLevel>Level3</WarningLevel>
+      <MultiProcessorCompilation>true</MultiProcessorCompilation>
+    </ClCompile>
+    <Link>
+      <AdditionalDependencies>opengl32.lib;.\includes\glfw\lib-vc2015\glfw3dll.lib;.\includes\Intel RealSense SDK 2.0\lib\x64\realsense2.lib;.\includes\opencv\build\x64\vc16\lib\opencv_world470.lib;.\includes\SDK V2.5\sdk-x64\libs\x64\EftSdk.lib;.\includes\SDK V2.5\sdk-x64\libs\x64\log4cpp.lib;.\includes\SDK V2.5\sdk-x64\libs\x64\rlibcpp-bcc.lib;.\includes\SDK V2.5\sdk-x64\libs\x64\rlibcpp-tool.lib;shell32.lib;.\includes\KW_SDK_D_1.0\SDK_1.0\SDK_windows_1.0\lib\CPP\camera.lib;.\includes\KW_SDK_D_1.0\SDK_1.0\SDK_windows_1.0\lib\CPP\enumerate.lib;.\includes\robot\64\libharmorobotservice.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalLibraryDirectories>.\includes\robot\64;.\includes\SDK V2.5\sdk-x64\libs\x64;.\includes\glfw\lib-vc2015;.\includes\KW_SDK_D_1.0\SDK_1.0\SDK_windows_1.0\lib\CPP;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalOptions>"/MANIFESTDEPENDENCY:type='win32' name='Microsoft.Windows.Common-Controls' version='6.0.0.0' publicKeyToken='6595b64144ccf1df' language='*' processorArchitecture='*'" %(AdditionalOptions)</AdditionalOptions>
+      <DataExecutionPrevention>true</DataExecutionPrevention>
+      <GenerateDebugInformation>false</GenerateDebugInformation>
+      <IgnoreImportLibrary>true</IgnoreImportLibrary>
+      <LinkIncremental>false</LinkIncremental>
+      <OptimizeReferences>true</OptimizeReferences>
+      <OutputFile>$(OutDir)\3dCad.exe</OutputFile>
+      <RandomizedBaseAddress>true</RandomizedBaseAddress>
+      <SubSystem>Console</SubSystem>
+      <SuppressStartupBanner>true</SuppressStartupBanner>
+    </Link>
+    <Midl>
+      <DefaultCharType>Unsigned</DefaultCharType>
+      <EnableErrorChecks>None</EnableErrorChecks>
+      <WarningLevel>0</WarningLevel>
+    </Midl>
+    <ResourceCompile>
+      <PreprocessorDefinitions>_WINDOWS;UNICODE;_UNICODE;WIN32;_ENABLE_EXTENDED_ALIGNED_STORAGE;QT_DEPRECATED_WARNINGS;_CRT_SECURE_NO_WARNINGS;BUILD_MYDLL;NDEBUG;QT_NO_DEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+    </ResourceCompile>
+    <QtMoc>
+      <CompilerFlavor>msvc</CompilerFlavor>
+      <Include>./$(Configuration)/moc_predefs.h</Include>
+      <ExecutionDescription>Moc'ing %(Identity)...</ExecutionDescription>
+      <DynamicSource>output</DynamicSource>
+      <QtMocDir>$(Configuration)</QtMocDir>
+      <QtMocFileName>moc_%(Filename).cpp</QtMocFileName>
+    </QtMoc>
+    <QtRcc>
+      <InitFuncName>resources</InitFuncName>
+      <Compression>default</Compression>
+      <ExecutionDescription>Rcc'ing %(Identity)...</ExecutionDescription>
+      <QtRccDir>$(Configuration)</QtRccDir>
+      <QtRccFileName>qrc_%(Filename).cpp</QtRccFileName>
+    </QtRcc>
+    <QtUic>
+      <ExecutionDescription>Uic'ing %(Identity)...</ExecutionDescription>
+      <QtUicDir>$(ProjectDir)</QtUicDir>
+      <QtUicFileName>ui_%(Filename).h</QtUicFileName>
+    </QtUic>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
+    <ClCompile>
+      <AdditionalIncludeDirectories>.;.\includes\glm;.\includes\glfw\include;.\includes\Intel RealSense SDK 2.0\include;.\includes\robot\32;.\includes\opencv\build\include;.\includes\opencv\build\include\opencv2;.\includes\SDK V2.0\sdk-x64\include;.\includes\SDK V2.0\sdk-x64\libs\x86;debug;.\includes\KW_SDK_D_1.0\SDK_1.0\SDK_windows_1.0\lib\CPP;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalOptions>-Zc:rvalueCast -Zc:inline -Zc:strictStrings -Zc:throwingNew -Zc:referenceBinding -Zc:__cplusplus -w34100 -w34189 -w44996 -w44456 -w44457 -w44458 %(AdditionalOptions)</AdditionalOptions>
+      <AssemblerListingLocation>debug\</AssemblerListingLocation>
+      <BrowseInformation>false</BrowseInformation>
+      <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
+      <DisableSpecificWarnings>4577;4467;%(DisableSpecificWarnings)</DisableSpecificWarnings>
+      <ExceptionHandling>Sync</ExceptionHandling>
+      <ObjectFileName>debug\</ObjectFileName>
+      <Optimization>Disabled</Optimization>
+      <PreprocessorDefinitions>_WINDOWS;UNICODE;_UNICODE;WIN32;_ENABLE_EXTENDED_ALIGNED_STORAGE;QT_DEPRECATED_WARNINGS;_CRT_SECURE_NO_WARNINGS;BUILD_MYDLL;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessToFile>false</PreprocessToFile>
+      <RuntimeLibrary>MultiThreadedDebugDLL</RuntimeLibrary>
+      <SuppressStartupBanner>true</SuppressStartupBanner>
+      <TreatWChar_tAsBuiltInType>true</TreatWChar_tAsBuiltInType>
+      <WarningLevel>Level3</WarningLevel>
+      <MultiProcessorCompilation>true</MultiProcessorCompilation>
+    </ClCompile>
+    <Link>
+      <AdditionalDependencies>opengl32.lib;.\includes\glfw\lib-vc2015\glfw3dll.lib;.\includes\Intel RealSense SDK 2.0\lib\x86\realsense2.lib;.\includes\robot\32\libharmorobotservice.lib;.\includes\opencv\build\x86\vc17\lib\opencv_world470d.lib;.\includes\opencv\build\x86\vc17\lib\opencv_world470.lib;.\includes\SDK V2.0\sdk-x64\libs\x86\EftSdkd.lib;.\includes\SDK V2.0\sdk-x64\libs\x86\log4cpp-d.lib;.\includes\SDK V2.0\sdk-x64\libs\x86\rlibcpp-bcc-d.lib;.\includes\SDK V2.0\sdk-x64\libs\x86\rlibcpp-tool-d.lib;shell32.lib;.\includes\KW_SDK_D_1.0\SDK_1.0\SDK_windows_1.0\lib\CPP\camera.lib;.\includes\KW_SDK_D_1.0\SDK_1.0\SDK_windows_1.0\lib\CPP\enumerate.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalLibraryDirectories>.\includes\glfw\lib-vc2015;.\includes\SDK V2.0\sdk-x64\libs\x86;.\includes\KW_SDK_D_1.0\SDK_1.0\SDK_windows_1.0\lib\CPP;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalOptions>"/MANIFESTDEPENDENCY:type='win32' name='Microsoft.Windows.Common-Controls' version='6.0.0.0' publicKeyToken='6595b64144ccf1df' language='*' processorArchitecture='*'" %(AdditionalOptions)</AdditionalOptions>
+      <DataExecutionPrevention>true</DataExecutionPrevention>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+      <IgnoreImportLibrary>true</IgnoreImportLibrary>
+      <OutputFile>$(OutDir)\3dCad.exe</OutputFile>
+      <RandomizedBaseAddress>true</RandomizedBaseAddress>
+      <SubSystem>Console</SubSystem>
+      <SuppressStartupBanner>true</SuppressStartupBanner>
+    </Link>
+    <Midl>
+      <DefaultCharType>Unsigned</DefaultCharType>
+      <EnableErrorChecks>None</EnableErrorChecks>
+      <WarningLevel>0</WarningLevel>
+    </Midl>
+    <ResourceCompile>
+      <PreprocessorDefinitions>_WINDOWS;UNICODE;_UNICODE;WIN32;_ENABLE_EXTENDED_ALIGNED_STORAGE;QT_DEPRECATED_WARNINGS;_CRT_SECURE_NO_WARNINGS;BUILD_MYDLL;_DEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+    </ResourceCompile>
+    <QtMoc>
+      <CompilerFlavor>msvc</CompilerFlavor>
+      <Include>./$(Configuration)/moc_predefs.h</Include>
+      <ExecutionDescription>Moc'ing %(Identity)...</ExecutionDescription>
+      <DynamicSource>output</DynamicSource>
+      <QtMocDir>$(Configuration)</QtMocDir>
+      <QtMocFileName>moc_%(Filename).cpp</QtMocFileName>
+    </QtMoc>
+    <QtRcc>
+      <InitFuncName>resources</InitFuncName>
+      <Compression>default</Compression>
+      <ExecutionDescription>Rcc'ing %(Identity)...</ExecutionDescription>
+      <QtRccDir>$(Configuration)</QtRccDir>
+      <QtRccFileName>qrc_%(Filename).cpp</QtRccFileName>
+    </QtRcc>
+    <QtUic>
+      <ExecutionDescription>Uic'ing %(Identity)...</ExecutionDescription>
+      <QtUicDir>$(ProjectDir)</QtUicDir>
+      <QtUicFileName>ui_%(Filename).h</QtUicFileName>
+    </QtUic>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+    <ClCompile>
+      <AdditionalIncludeDirectories>.;.\includes\glm;.\includes\glfw\include;.\includes\Intel RealSense SDK 2.0\include;.\includes\robot\64;.\includes\opencv\build\include;.\includes\opencv\build\include\opencv2;.\includes\SDK V2.5\sdk-x64\include;.\includes\SDK V2.5\sdk-x64\libs\x64;debug;.\includes\KW_SDK_D_1.0\SDK_1.0\SDK_windows_1.0\lib\CPP;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalOptions>-Zc:rvalueCast -Zc:inline -Zc:strictStrings -Zc:throwingNew -Zc:referenceBinding -Zc:__cplusplus -w34100 -w34189 -w44996 -w44456 -w44457 -w44458 %(AdditionalOptions)</AdditionalOptions>
+      <AssemblerListingLocation>debug\</AssemblerListingLocation>
+      <BrowseInformation>false</BrowseInformation>
+      <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
+      <DisableSpecificWarnings>4577;4467;%(DisableSpecificWarnings)</DisableSpecificWarnings>
+      <ExceptionHandling>Sync</ExceptionHandling>
+      <ObjectFileName>debug\</ObjectFileName>
+      <Optimization>Disabled</Optimization>
+      <PreprocessorDefinitions>_WINDOWS;UNICODE;_UNICODE;WIN32;_ENABLE_EXTENDED_ALIGNED_STORAGE;QT_DEPRECATED_WARNINGS;_CRT_SECURE_NO_WARNINGS;BUILD_MYDLL;WIN32_LEAN_AND_MEAN;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessToFile>false</PreprocessToFile>
+      <RuntimeLibrary>MultiThreadedDebugDLL</RuntimeLibrary>
+      <SuppressStartupBanner>true</SuppressStartupBanner>
+      <TreatWChar_tAsBuiltInType>true</TreatWChar_tAsBuiltInType>
+      <WarningLevel>Level3</WarningLevel>
+      <MultiProcessorCompilation>true</MultiProcessorCompilation>
+    </ClCompile>
+    <Link>
+      <AdditionalDependencies>opengl32.lib;.\includes\glfw\lib-vc2015\glfw3dll.lib;.\includes\Intel RealSense SDK 2.0\lib\x64\realsense2.lib;.\includes\robot\64\libharmorobotservice.lib;.\includes\opencv\build\x64\vc16\lib\opencv_world470d.lib;.\includes\SDK V2.5\sdk-x64\libs\x64\EftSdkd.lib;.\includes\SDK V2.5\sdk-x64\libs\x64\log4cpp-d.lib;.\includes\SDK V2.5\sdk-x64\libs\x64\rlibcpp-bcc-d.lib;.\includes\SDK V2.5\sdk-x64\libs\x64\rlibcpp-tool-d.lib;shell32.lib;.\includes\KW_SDK_D_1.0\SDK_1.0\SDK_windows_1.0\lib\CPP\camera.lib;.\includes\KW_SDK_D_1.0\SDK_1.0\SDK_windows_1.0\lib\CPP\enumerate.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalLibraryDirectories>.\includes\glfw\lib-vc2015;.\includes\SDK V2.5\sdk-x64\libs\x64;.\includes\KW_SDK_D_1.0\SDK_1.0\SDK_windows_1.0\lib\CPP;.\x64\Debug;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalOptions>"/MANIFESTDEPENDENCY:type='win32' name='Microsoft.Windows.Common-Controls' version='6.0.0.0' publicKeyToken='6595b64144ccf1df' language='*' processorArchitecture='*'" %(AdditionalOptions)</AdditionalOptions>
+      <DataExecutionPrevention>true</DataExecutionPrevention>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+      <IgnoreImportLibrary>true</IgnoreImportLibrary>
+      <OutputFile>$(OutDir)\3dCad.exe</OutputFile>
+      <RandomizedBaseAddress>true</RandomizedBaseAddress>
+      <SubSystem>Console</SubSystem>
+      <SuppressStartupBanner>true</SuppressStartupBanner>
+    </Link>
+    <Midl>
+      <DefaultCharType>Unsigned</DefaultCharType>
+      <EnableErrorChecks>None</EnableErrorChecks>
+      <WarningLevel>0</WarningLevel>
+    </Midl>
+    <ResourceCompile>
+      <PreprocessorDefinitions>_WINDOWS;UNICODE;_UNICODE;WIN32;_ENABLE_EXTENDED_ALIGNED_STORAGE;QT_DEPRECATED_WARNINGS;_CRT_SECURE_NO_WARNINGS;BUILD_MYDLL;_DEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+    </ResourceCompile>
+    <QtMoc>
+      <CompilerFlavor>msvc</CompilerFlavor>
+      <Include>./$(Configuration)/moc_predefs.h</Include>
+      <ExecutionDescription>Moc'ing %(Identity)...</ExecutionDescription>
+      <DynamicSource>output</DynamicSource>
+      <QtMocDir>$(Configuration)</QtMocDir>
+      <QtMocFileName>moc_%(Filename).cpp</QtMocFileName>
+    </QtMoc>
+    <QtRcc>
+      <InitFuncName>resources</InitFuncName>
+      <Compression>default</Compression>
+      <ExecutionDescription>Rcc'ing %(Identity)...</ExecutionDescription>
+      <QtRccDir>$(Configuration)</QtRccDir>
+      <QtRccFileName>qrc_%(Filename).cpp</QtRccFileName>
+    </QtRcc>
+    <QtUic>
+      <ExecutionDescription>Uic'ing %(Identity)...</ExecutionDescription>
+      <QtUicDir>$(ProjectDir)</QtUicDir>
+      <QtUicFileName>ui_%(Filename).h</QtUicFileName>
+    </QtUic>
+  </ItemDefinitionGroup>
+  <ItemGroup>
+    <ClCompile Include="common.cpp" />
+    <ClCompile Include="drawingcanvas.cpp" />
+    <ClCompile Include="EfortRobot.cpp" />
+    <ClCompile Include="HarmoRobot.cpp" />
+    <ClCompile Include="HarmoMotionPlan.cpp" />
+    <ClCompile Include="includes\glm\glm\detail\glm.cpp" />
+    <ClCompile Include="iocontrol.cpp" />
+    <ClCompile Include="main.cpp" />
+    <ClCompile Include="mainwindow.cpp" />
+    <ClCompile Include="myweldtrack.cpp" />
+    <ClCompile Include="openglwidget.cpp" />
+    <ClCompile Include="planeselection.cpp" />
+    <ClCompile Include="robot.cpp" />
+    <ClCompile Include="RobotController.cpp" />
+    <ClCompile Include="rscamera.cpp" />
+    <ClCompile Include="tinyxml2.cpp" />
+    <ClCompile Include="weldiosetdlg.cpp" />
+    <ClCompile Include="XPLGenerator.cpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <QtMoc Include="HarmoRobot.h" />
+    <QtMoc Include="drawingcanvas.h" />
+    <ClInclude Include="planeselection.h" />
+    <ClInclude Include="EfortRobot.h" />
+    <ClInclude Include="includes\robot\32\TcpClientCommon.h" />
+    <ClInclude Include="includes\robot\32\TcpClientControlOperate.h" />
+    <ClInclude Include="includes\robot\32\TcpClientInclude.h" />
+    <ClInclude Include="includes\robot\32\TcpClientStateOperate.h" />
+    <ClInclude Include="includes\glm\glm\detail\_features.hpp" />
+    <ClInclude Include="includes\glm\glm\detail\_fixes.hpp" />
+    <ClInclude Include="includes\glm\glm\ext\_matrix_vectorize.hpp" />
+    <ClInclude Include="includes\glm\glm\detail\_noise.hpp" />
+    <ClInclude Include="includes\glm\glm\detail\_swizzle.hpp" />
+    <ClInclude Include="includes\glm\glm\detail\_swizzle_func.hpp" />
+    <ClInclude Include="includes\glm\glm\detail\_vectorize.hpp" />
+    <ClInclude Include="includes\glm\glm\gtx\associated_min_max.hpp" />
+    <ClInclude Include="includes\glm\glm\gtx\bit.hpp" />
+    <ClInclude Include="includes\glm\glm\gtc\bitfield.hpp" />
+    <ClInclude Include="includes\glm\glm\gtx\closest_point.hpp" />
+    <ClInclude Include="includes\glm\glm\gtx\color_encoding.hpp" />
+    <ClInclude Include="includes\glm\glm\gtc\color_space.hpp" />
+    <ClInclude Include="includes\glm\glm\gtx\color_space.hpp" />
+    <ClInclude Include="includes\glm\glm\gtx\color_space_YCoCg.hpp" />
+    <ClInclude Include="common.h" />
+    <ClInclude Include="includes\glm\glm\common.hpp" />
+    <ClInclude Include="includes\glm\glm\gtx\common.hpp" />
+    <ClInclude Include="includes\glm\glm\gtx\compatibility.hpp" />
+    <ClInclude Include="includes\glm\glm\gtx\component_wise.hpp" />
+    <ClInclude Include="includes\glm\glm\detail\compute_common.hpp" />
+    <ClInclude Include="includes\glm\glm\detail\compute_vector_decl.hpp" />
+    <ClInclude Include="includes\glm\glm\detail\compute_vector_relational.hpp" />
+    <ClInclude Include="includes\glm\glm\gtc\constants.hpp" />
+    <ClInclude Include="includes\glm\glm\gtx\dual_quaternion.hpp" />
+    <ClInclude Include="includes\glm\glm\gtx\easing.hpp" />
+    <ClInclude Include="includes\glm\glm\gtc\epsilon.hpp" />
+    <ClInclude Include="includes\glm\glm\gtx\euler_angles.hpp" />
+    <ClInclude Include="includes\glm\glm\exponential.hpp" />
+    <ClInclude Include="includes\glm\glm\ext.hpp" />
+    <ClInclude Include="includes\glm\glm\gtx\extend.hpp" />
+    <ClInclude Include="includes\glm\glm\gtx\extended_min_max.hpp" />
+    <ClInclude Include="includes\glm\glm\gtx\exterior_product.hpp" />
+    <ClInclude Include="includes\glm\glm\gtx\fast_exponential.hpp" />
+    <ClInclude Include="includes\glm\glm\gtx\fast_square_root.hpp" />
+    <ClInclude Include="includes\glm\glm\gtx\fast_trigonometry.hpp" />
+    <ClInclude Include="includes\glm\glm\gtx\functions.hpp" />
+    <ClInclude Include="includes\glm\glm\fwd.hpp" />
+    <ClInclude Include="includes\glm\glm\geometric.hpp" />
+    <ClInclude Include="includes\glm\glm\glm.hpp" />
+    <ClInclude Include="includes\glm\glm\gtx\gradient_paint.hpp" />
+    <ClInclude Include="includes\glm\glm\gtx\handed_coordinate_space.hpp" />
+    <ClInclude Include="includes\glm\glm\gtx\hash.hpp" />
+    <ClInclude Include="includes\glm\glm\gtc\integer.hpp" />
+    <ClInclude Include="includes\glm\glm\gtx\integer.hpp" />
+    <ClInclude Include="includes\glm\glm\integer.hpp" />
+    <ClInclude Include="includes\glm\glm\gtx\intersect.hpp" />
+    <ClInclude Include="includes\glm\glm\gtx\io.hpp" />
+    <QtMoc Include="RobotController.h" />
+    <ClInclude Include="RobotTypes.h" />
+    <ClInclude Include="HarmoMotionPlan.h" />
+    <ClInclude Include="tinyxml2.h" />
+    <ClInclude Include="XPLGenerator.h" />
+    <QtMoc Include="iocontrol.h" />
+    <ClInclude Include="includes\glm\glm\gtx\log_base.hpp" />
+    <QtMoc Include="mainwindow.h" />
+    <ClInclude Include="includes\glm\glm\mat2x2.hpp" />
+    <ClInclude Include="includes\glm\glm\mat2x3.hpp" />
+    <ClInclude Include="includes\glm\glm\mat2x4.hpp" />
+    <ClInclude Include="includes\glm\glm\mat3x2.hpp" />
+    <ClInclude Include="includes\glm\glm\mat3x3.hpp" />
+    <ClInclude Include="includes\glm\glm\mat3x4.hpp" />
+    <ClInclude Include="includes\glm\glm\mat4x2.hpp" />
+    <ClInclude Include="includes\glm\glm\mat4x3.hpp" />
+    <ClInclude Include="includes\glm\glm\mat4x4.hpp" />
+    <ClInclude Include="includes\glm\glm\matrix.hpp" />
+    <ClInclude Include="includes\glm\glm\gtc\matrix_access.hpp" />
+    <ClInclude Include="includes\glm\glm\ext\matrix_clip_space.hpp" />
+    <ClInclude Include="includes\glm\glm\ext\matrix_common.hpp" />
+    <ClInclude Include="includes\glm\glm\gtx\matrix_cross_product.hpp" />
+    <ClInclude Include="includes\glm\glm\gtx\matrix_decompose.hpp" />
+    <ClInclude Include="includes\glm\glm\ext\matrix_double2x2.hpp" />
+    <ClInclude Include="includes\glm\glm\ext\matrix_double2x2_precision.hpp" />
+    <ClInclude Include="includes\glm\glm\ext\matrix_double2x3.hpp" />
+    <ClInclude Include="includes\glm\glm\ext\matrix_double2x3_precision.hpp" />
+    <ClInclude Include="includes\glm\glm\ext\matrix_double2x4.hpp" />
+    <ClInclude Include="includes\glm\glm\ext\matrix_double2x4_precision.hpp" />
+    <ClInclude Include="includes\glm\glm\ext\matrix_double3x2.hpp" />
+    <ClInclude Include="includes\glm\glm\ext\matrix_double3x2_precision.hpp" />
+    <ClInclude Include="includes\glm\glm\ext\matrix_double3x3.hpp" />
+    <ClInclude Include="includes\glm\glm\ext\matrix_double3x3_precision.hpp" />
+    <ClInclude Include="includes\glm\glm\ext\matrix_double3x4.hpp" />
+    <ClInclude Include="includes\glm\glm\ext\matrix_double3x4_precision.hpp" />
+    <ClInclude Include="includes\glm\glm\ext\matrix_double4x2.hpp" />
+    <ClInclude Include="includes\glm\glm\ext\matrix_double4x2_precision.hpp" />
+    <ClInclude Include="includes\glm\glm\ext\matrix_double4x3.hpp" />
+    <ClInclude Include="includes\glm\glm\ext\matrix_double4x3_precision.hpp" />
+    <ClInclude Include="includes\glm\glm\ext\matrix_double4x4.hpp" />
+    <ClInclude Include="includes\glm\glm\ext\matrix_double4x4_precision.hpp" />
+    <ClInclude Include="includes\glm\glm\gtx\matrix_factorisation.hpp" />
+    <ClInclude Include="includes\glm\glm\ext\matrix_float2x2.hpp" />
+    <ClInclude Include="includes\glm\glm\ext\matrix_float2x2_precision.hpp" />
+    <ClInclude Include="includes\glm\glm\ext\matrix_float2x3.hpp" />
+    <ClInclude Include="includes\glm\glm\ext\matrix_float2x3_precision.hpp" />
+    <ClInclude Include="includes\glm\glm\ext\matrix_float2x4.hpp" />
+    <ClInclude Include="includes\glm\glm\ext\matrix_float2x4_precision.hpp" />
+    <ClInclude Include="includes\glm\glm\ext\matrix_float3x2.hpp" />
+    <ClInclude Include="includes\glm\glm\ext\matrix_float3x2_precision.hpp" />
+    <ClInclude Include="includes\glm\glm\ext\matrix_float3x3.hpp" />
+    <ClInclude Include="includes\glm\glm\ext\matrix_float3x3_precision.hpp" />
+    <ClInclude Include="includes\glm\glm\ext\matrix_float3x4.hpp" />
+    <ClInclude Include="includes\glm\glm\ext\matrix_float3x4_precision.hpp" />
+    <ClInclude Include="includes\glm\glm\ext\matrix_float4x2.hpp" />
+    <ClInclude Include="includes\glm\glm\ext\matrix_float4x2_precision.hpp" />
+    <ClInclude Include="includes\glm\glm\ext\matrix_float4x3.hpp" />
+    <ClInclude Include="includes\glm\glm\ext\matrix_float4x3_precision.hpp" />
+    <ClInclude Include="includes\glm\glm\ext\matrix_float4x4.hpp" />
+    <ClInclude Include="includes\glm\glm\ext\matrix_float4x4_precision.hpp" />
+    <ClInclude Include="includes\glm\glm\ext\matrix_int2x2.hpp" />
+    <ClInclude Include="includes\glm\glm\ext\matrix_int2x2_sized.hpp" />
+    <ClInclude Include="includes\glm\glm\ext\matrix_int2x3.hpp" />
+    <ClInclude Include="includes\glm\glm\ext\matrix_int2x3_sized.hpp" />
+    <ClInclude Include="includes\glm\glm\ext\matrix_int2x4.hpp" />
+    <ClInclude Include="includes\glm\glm\ext\matrix_int2x4_sized.hpp" />
+    <ClInclude Include="includes\glm\glm\ext\matrix_int3x2.hpp" />
+    <ClInclude Include="includes\glm\glm\ext\matrix_int3x2_sized.hpp" />
+    <ClInclude Include="includes\glm\glm\ext\matrix_int3x3.hpp" />
+    <ClInclude Include="includes\glm\glm\ext\matrix_int3x3_sized.hpp" />
+    <ClInclude Include="includes\glm\glm\ext\matrix_int3x4.hpp" />
+    <ClInclude Include="includes\glm\glm\ext\matrix_int3x4_sized.hpp" />
+    <ClInclude Include="includes\glm\glm\ext\matrix_int4x2.hpp" />
+    <ClInclude Include="includes\glm\glm\ext\matrix_int4x2_sized.hpp" />
+    <ClInclude Include="includes\glm\glm\ext\matrix_int4x3.hpp" />
+    <ClInclude Include="includes\glm\glm\ext\matrix_int4x3_sized.hpp" />
+    <ClInclude Include="includes\glm\glm\ext\matrix_int4x4.hpp" />
+    <ClInclude Include="includes\glm\glm\ext\matrix_int4x4_sized.hpp" />
+    <ClInclude Include="includes\glm\glm\ext\matrix_integer.hpp" />
+    <ClInclude Include="includes\glm\glm\gtc\matrix_integer.hpp" />
+    <ClInclude Include="includes\glm\glm\gtx\matrix_interpolation.hpp" />
+    <ClInclude Include="includes\glm\glm\gtc\matrix_inverse.hpp" />
+    <ClInclude Include="includes\glm\glm\gtx\matrix_major_storage.hpp" />
+    <ClInclude Include="includes\glm\glm\gtx\matrix_operation.hpp" />
+    <ClInclude Include="includes\glm\glm\ext\matrix_projection.hpp" />
+    <ClInclude Include="includes\glm\glm\gtx\matrix_query.hpp" />
+    <ClInclude Include="includes\glm\glm\ext\matrix_relational.hpp" />
+    <ClInclude Include="includes\glm\glm\ext\matrix_transform.hpp" />
+    <ClInclude Include="includes\glm\glm\gtc\matrix_transform.hpp" />
+    <ClInclude Include="includes\glm\glm\gtx\matrix_transform_2d.hpp" />
+    <ClInclude Include="includes\glm\glm\ext\matrix_uint2x2.hpp" />
+    <ClInclude Include="includes\glm\glm\ext\matrix_uint2x2_sized.hpp" />
+    <ClInclude Include="includes\glm\glm\ext\matrix_uint2x3.hpp" />
+    <ClInclude Include="includes\glm\glm\ext\matrix_uint2x3_sized.hpp" />
+    <ClInclude Include="includes\glm\glm\ext\matrix_uint2x4.hpp" />
+    <ClInclude Include="includes\glm\glm\ext\matrix_uint2x4_sized.hpp" />
+    <ClInclude Include="includes\glm\glm\ext\matrix_uint3x2.hpp" />
+    <ClInclude Include="includes\glm\glm\ext\matrix_uint3x2_sized.hpp" />
+    <ClInclude Include="includes\glm\glm\ext\matrix_uint3x3.hpp" />
+    <ClInclude Include="includes\glm\glm\ext\matrix_uint3x3_sized.hpp" />
+    <ClInclude Include="includes\glm\glm\ext\matrix_uint3x4.hpp" />
+    <ClInclude Include="includes\glm\glm\ext\matrix_uint3x4_sized.hpp" />
+    <ClInclude Include="includes\glm\glm\ext\matrix_uint4x2.hpp" />
+    <ClInclude Include="includes\glm\glm\ext\matrix_uint4x2_sized.hpp" />
+    <ClInclude Include="includes\glm\glm\ext\matrix_uint4x3.hpp" />
+    <ClInclude Include="includes\glm\glm\ext\matrix_uint4x3_sized.hpp" />
+    <ClInclude Include="includes\glm\glm\ext\matrix_uint4x4.hpp" />
+    <ClInclude Include="includes\glm\glm\ext\matrix_uint4x4_sized.hpp" />
+    <ClInclude Include="includes\glm\glm\gtx\mixed_product.hpp" />
+    <ClInclude Include="myweldtrack.h" />
+    <ClInclude Include="includes\glm\glm\gtc\noise.hpp" />
+    <ClInclude Include="includes\glm\glm\gtx\norm.hpp" />
+    <ClInclude Include="includes\glm\glm\gtx\normal.hpp" />
+    <ClInclude Include="includes\glm\glm\gtx\normalize_dot.hpp" />
+    <ClInclude Include="includes\glm\glm\gtx\number_precision.hpp" />
+    <QtMoc Include="openglwidget.h" />
+    <ClInclude Include="includes\glm\glm\gtx\optimum_pow.hpp" />
+    <ClInclude Include="includes\glm\glm\gtx\orthonormalize.hpp" />
+    <ClInclude Include="includes\glm\glm\gtc\packing.hpp" />
+    <ClInclude Include="includes\glm\glm\packing.hpp" />
+    <ClInclude Include="includes\glm\glm\gtx\pca.hpp" />
+    <ClInclude Include="includes\glm\glm\gtx\perpendicular.hpp" />
+    <ClInclude Include="includes\glm\glm\gtx\polar_coordinates.hpp" />
+    <ClInclude Include="includes\glm\glm\gtx\projection.hpp" />
+    <ClInclude Include="includes\glm\glm\detail\qualifier.hpp" />
+    <ClInclude Include="includes\glm\glm\gtc\quaternion.hpp" />
+    <ClInclude Include="includes\glm\glm\gtx\quaternion.hpp" />
+    <ClInclude Include="includes\glm\glm\ext\quaternion_common.hpp" />
+    <ClInclude Include="includes\glm\glm\ext\quaternion_double.hpp" />
+    <ClInclude Include="includes\glm\glm\ext\quaternion_double_precision.hpp" />
+    <ClInclude Include="includes\glm\glm\ext\quaternion_exponential.hpp" />
+    <ClInclude Include="includes\glm\glm\ext\quaternion_float.hpp" />
+    <ClInclude Include="includes\glm\glm\ext\quaternion_float_precision.hpp" />
+    <ClInclude Include="includes\glm\glm\ext\quaternion_geometric.hpp" />
+    <ClInclude Include="includes\glm\glm\ext\quaternion_relational.hpp" />
+    <ClInclude Include="includes\glm\glm\ext\quaternion_transform.hpp" />
+    <ClInclude Include="includes\glm\glm\ext\quaternion_trigonometric.hpp" />
+    <ClInclude Include="includes\glm\glm\gtc\random.hpp" />
+    <ClInclude Include="includes\glm\glm\gtx\range.hpp" />
+    <ClInclude Include="includes\glm\glm\gtx\raw_data.hpp" />
+    <ClInclude Include="includes\glm\glm\gtc\reciprocal.hpp" />
+    <ClInclude Include="robot.h" />
+    <ClInclude Include="includes\glm\glm\gtx\rotate_normalized_axis.hpp" />
+    <ClInclude Include="includes\glm\glm\gtx\rotate_vector.hpp" />
+    <ClInclude Include="includes\glm\glm\gtc\round.hpp" />
+    <ClInclude Include="rscamera.h" />
+    <ClInclude Include="includes\glm\glm\ext\scalar_common.hpp" />
+    <ClInclude Include="includes\glm\glm\ext\scalar_constants.hpp" />
+    <ClInclude Include="includes\glm\glm\ext\scalar_int_sized.hpp" />
+    <ClInclude Include="includes\glm\glm\ext\scalar_integer.hpp" />
+    <ClInclude Include="includes\glm\glm\gtx\scalar_multiplication.hpp" />
+    <ClInclude Include="includes\glm\glm\ext\scalar_packing.hpp" />
+    <ClInclude Include="includes\glm\glm\ext\scalar_reciprocal.hpp" />
+    <ClInclude Include="includes\glm\glm\ext\scalar_relational.hpp" />
+    <ClInclude Include="includes\glm\glm\gtx\scalar_relational.hpp" />
+    <ClInclude Include="includes\glm\glm\ext\scalar_uint_sized.hpp" />
+    <ClInclude Include="includes\glm\glm\ext\scalar_ulp.hpp" />
+    <ClInclude Include="includes\glm\glm\detail\setup.hpp" />
+    <ClInclude Include="includes\glm\glm\gtx\spline.hpp" />
+    <ClInclude Include="includes\glm\glm\gtx\std_based_type.hpp" />
+    <ClInclude Include="includes\glm\glm\gtx\string_cast.hpp" />
+    <ClInclude Include="includes\glm\glm\gtx\texture.hpp" />
+    <ClInclude Include="includes\glm\glm\gtx\transform.hpp" />
+    <ClInclude Include="includes\glm\glm\gtx\transform2.hpp" />
+    <ClInclude Include="includes\glm\glm\trigonometric.hpp" />
+    <ClInclude Include="includes\glm\glm\gtc\type_aligned.hpp" />
+    <ClInclude Include="includes\glm\glm\gtx\type_aligned.hpp" />
+    <ClInclude Include="includes\glm\glm\detail\type_float.hpp" />
+    <ClInclude Include="includes\glm\glm\detail\type_half.hpp" />
+    <ClInclude Include="includes\glm\glm\detail\type_mat2x2.hpp" />
+    <ClInclude Include="includes\glm\glm\detail\type_mat2x3.hpp" />
+    <ClInclude Include="includes\glm\glm\detail\type_mat2x4.hpp" />
+    <ClInclude Include="includes\glm\glm\detail\type_mat3x2.hpp" />
+    <ClInclude Include="includes\glm\glm\detail\type_mat3x3.hpp" />
+    <ClInclude Include="includes\glm\glm\detail\type_mat3x4.hpp" />
+    <ClInclude Include="includes\glm\glm\detail\type_mat4x2.hpp" />
+    <ClInclude Include="includes\glm\glm\detail\type_mat4x3.hpp" />
+    <ClInclude Include="includes\glm\glm\detail\type_mat4x4.hpp" />
+    <ClInclude Include="includes\glm\glm\gtc\type_precision.hpp" />
+    <ClInclude Include="includes\glm\glm\gtc\type_ptr.hpp" />
+    <ClInclude Include="includes\glm\glm\detail\type_quat.hpp" />
+    <ClInclude Include="includes\glm\glm\gtx\type_trait.hpp" />
+    <ClInclude Include="includes\glm\glm\detail\type_vec1.hpp" />
+    <ClInclude Include="includes\glm\glm\detail\type_vec2.hpp" />
+    <ClInclude Include="includes\glm\glm\detail\type_vec3.hpp" />
+    <ClInclude Include="includes\glm\glm\detail\type_vec4.hpp" />
+    <ClInclude Include="includes\glm\glm\gtc\ulp.hpp" />
+    <ClInclude Include="includes\glm\glm\gtc\vec1.hpp" />
+    <ClInclude Include="includes\glm\glm\vec2.hpp" />
+    <ClInclude Include="includes\glm\glm\vec3.hpp" />
+    <ClInclude Include="includes\glm\glm\vec4.hpp" />
+    <ClInclude Include="includes\glm\glm\gtx\vec_swizzle.hpp" />
+    <ClInclude Include="includes\glm\glm\gtx\vector_angle.hpp" />
+    <ClInclude Include="includes\glm\glm\ext\vector_bool1.hpp" />
+    <ClInclude Include="includes\glm\glm\ext\vector_bool1_precision.hpp" />
+    <ClInclude Include="includes\glm\glm\ext\vector_bool2.hpp" />
+    <ClInclude Include="includes\glm\glm\ext\vector_bool2_precision.hpp" />
+    <ClInclude Include="includes\glm\glm\ext\vector_bool3.hpp" />
+    <ClInclude Include="includes\glm\glm\ext\vector_bool3_precision.hpp" />
+    <ClInclude Include="includes\glm\glm\ext\vector_bool4.hpp" />
+    <ClInclude Include="includes\glm\glm\ext\vector_bool4_precision.hpp" />
+    <ClInclude Include="includes\glm\glm\ext\vector_common.hpp" />
+    <ClInclude Include="includes\glm\glm\ext\vector_double1.hpp" />
+    <ClInclude Include="includes\glm\glm\ext\vector_double1_precision.hpp" />
+    <ClInclude Include="includes\glm\glm\ext\vector_double2.hpp" />
+    <ClInclude Include="includes\glm\glm\ext\vector_double2_precision.hpp" />
+    <ClInclude Include="includes\glm\glm\ext\vector_double3.hpp" />
+    <ClInclude Include="includes\glm\glm\ext\vector_double3_precision.hpp" />
+    <ClInclude Include="includes\glm\glm\ext\vector_double4.hpp" />
+    <ClInclude Include="includes\glm\glm\ext\vector_double4_precision.hpp" />
+    <ClInclude Include="includes\glm\glm\ext\vector_float1.hpp" />
+    <ClInclude Include="includes\glm\glm\ext\vector_float1_precision.hpp" />
+    <ClInclude Include="includes\glm\glm\ext\vector_float2.hpp" />
+    <ClInclude Include="includes\glm\glm\ext\vector_float2_precision.hpp" />
+    <ClInclude Include="includes\glm\glm\ext\vector_float3.hpp" />
+    <ClInclude Include="includes\glm\glm\ext\vector_float3_precision.hpp" />
+    <ClInclude Include="includes\glm\glm\ext\vector_float4.hpp" />
+    <ClInclude Include="includes\glm\glm\ext\vector_float4_precision.hpp" />
+    <ClInclude Include="includes\glm\glm\ext\vector_int1.hpp" />
+    <ClInclude Include="includes\glm\glm\ext\vector_int1_sized.hpp" />
+    <ClInclude Include="includes\glm\glm\ext\vector_int2.hpp" />
+    <ClInclude Include="includes\glm\glm\ext\vector_int2_sized.hpp" />
+    <ClInclude Include="includes\glm\glm\ext\vector_int3.hpp" />
+    <ClInclude Include="includes\glm\glm\ext\vector_int3_sized.hpp" />
+    <ClInclude Include="includes\glm\glm\ext\vector_int4.hpp" />
+    <ClInclude Include="includes\glm\glm\ext\vector_int4_sized.hpp" />
+    <ClInclude Include="includes\glm\glm\ext\vector_integer.hpp" />
+    <ClInclude Include="includes\glm\glm\ext\vector_packing.hpp" />
+    <ClInclude Include="includes\glm\glm\gtx\vector_query.hpp" />
+    <ClInclude Include="includes\glm\glm\ext\vector_reciprocal.hpp" />
+    <ClInclude Include="includes\glm\glm\ext\vector_relational.hpp" />
+    <ClInclude Include="includes\glm\glm\vector_relational.hpp" />
+    <ClInclude Include="includes\glm\glm\ext\vector_uint1.hpp" />
+    <ClInclude Include="includes\glm\glm\ext\vector_uint1_sized.hpp" />
+    <ClInclude Include="includes\glm\glm\ext\vector_uint2.hpp" />
+    <ClInclude Include="includes\glm\glm\ext\vector_uint2_sized.hpp" />
+    <ClInclude Include="includes\glm\glm\ext\vector_uint3.hpp" />
+    <ClInclude Include="includes\glm\glm\ext\vector_uint3_sized.hpp" />
+    <ClInclude Include="includes\glm\glm\ext\vector_uint4.hpp" />
+    <ClInclude Include="includes\glm\glm\ext\vector_uint4_sized.hpp" />
+    <ClInclude Include="includes\glm\glm\ext\vector_ulp.hpp" />
+    <QtMoc Include="weldiosetdlg.h" />
+    <ClInclude Include="includes\glm\glm\gtx\wrap.hpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <CustomBuild Include="debug\moc_predefs.h.cbt">
+      <FileType>Document</FileType>
+      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">$(QTDIR)\mkspecs\features\data\dummy.cpp;%(AdditionalInputs)</AdditionalInputs>
+      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">$(QTDIR)\mkspecs\features\data\dummy.cpp;%(AdditionalInputs)</AdditionalInputs>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">cl -Bx"$(QTDIR)\bin\qmake.exe" -nologo -Zc:wchar_t -FS -Zc:rvalueCast -Zc:inline -Zc:strictStrings -Zc:throwingNew -Zc:referenceBinding -Zc:__cplusplus -Zi -MDd -W3 -w34100 -w34189 -w44996 -w44456 -w44457 -w44458 -wd4577 -wd4467 -E $(QTDIR)\mkspecs\features\data\dummy.cpp 2&gt;NUL &gt;$(IntDir)\moc_predefs.h</Command>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">cl -Bx"$(QTDIR)\bin\qmake.exe" -nologo -Zc:wchar_t -FS -Zc:rvalueCast -Zc:inline -Zc:strictStrings -Zc:throwingNew -Zc:referenceBinding -Zc:__cplusplus -Zi -MDd -W3 -w34100 -w34189 -w44996 -w44456 -w44457 -w44458 -wd4577 -wd4467 -E $(QTDIR)\mkspecs\features\data\dummy.cpp 2&gt;NUL &gt;$(IntDir)\moc_predefs.h</Command>
+      <Message Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Generate moc_predefs.h</Message>
+      <Message Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Generate moc_predefs.h</Message>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">$(IntDir)\moc_predefs.h;%(Outputs)</Outputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">$(IntDir)\moc_predefs.h;%(Outputs)</Outputs>
+    </CustomBuild>
+    <CustomBuild Include="release\moc_predefs.h.cbt">
+      <FileType>Document</FileType>
+      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">$(QTDIR)\mkspecs\features\data\dummy.cpp;%(AdditionalInputs)</AdditionalInputs>
+      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">$(QTDIR)\mkspecs\features\data\dummy.cpp;%(AdditionalInputs)</AdditionalInputs>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">cl -Bx"$(QTDIR)\bin\qmake.exe" -nologo -Zc:wchar_t -FS -Zc:rvalueCast -Zc:inline -Zc:strictStrings -Zc:throwingNew -Zc:referenceBinding -Zc:__cplusplus -O2 -MD -W3 -w34100 -w34189 -w44996 -w44456 -w44457 -w44458 -wd4577 -wd4467 -E $(QTDIR)\mkspecs\features\data\dummy.cpp 2&gt;NUL &gt;$(IntDir)\moc_predefs.h</Command>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Release|x64'">cl -Bx"$(QTDIR)\bin\qmake.exe" -nologo -Zc:wchar_t -FS -Zc:rvalueCast -Zc:inline -Zc:strictStrings -Zc:throwingNew -Zc:referenceBinding -Zc:__cplusplus -O2 -MD -W3 -w34100 -w34189 -w44996 -w44456 -w44457 -w44458 -wd4577 -wd4467 -E $(QTDIR)\mkspecs\features\data\dummy.cpp 2&gt;NUL &gt;$(IntDir)\moc_predefs.h</Command>
+      <Message Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Generate moc_predefs.h</Message>
+      <Message Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Generate moc_predefs.h</Message>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">$(IntDir)\moc_predefs.h;%(Outputs)</Outputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">$(IntDir)\moc_predefs.h;%(Outputs)</Outputs>
+    </CustomBuild>
+  </ItemGroup>
+  <ItemGroup>
+    <QtUic Include="iocontrol.ui" />
+    <QtUic Include="mainwindow.ui" />
+    <QtUic Include="weldiosetdlg.ui" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="shaders\fragmentshader.fsh" />
+    <QtRcc Include="resources.qrc" />
+    <None Include="shaders\vertexshader.vsh" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include=".\includes\glm\glm\CMakeLists.txt" />
+    <None Include="shaders\fragmentshader.fsh" />
+    <None Include="includes\glm\glm.pri" />
+    <None Include="shaders\vertexshader.vsh" />
+  </ItemGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
+  <Import Project="$(QtMsBuild)\qt.targets" Condition="Exists('$(QtMsBuild)\qt.targets')" />
+  <ImportGroup Label="ExtensionTargets" />
+</Project>

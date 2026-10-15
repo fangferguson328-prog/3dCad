@@ -1,0 +1,81 @@
+# Third-party SDKs are distributed separately. See README.md and
+# deployment/sdk-manifest.json. These files are required locally, not disposable.
+/includes/
+/camera.dll
+/camera.lib
+/enumerate.dll
+/enumerate.lib
+
+# IDE state and machine-specific settings
+.DS_Store
+.vs/
+.agents/
+*.pro.user*
+*.vcxproj.user
+*.suo
+*.userosscache
+*.sln.docstates
+*.qtvscr
+/cpp.hint
+
+# Build/package directories (root-anchored: SDK paths may also contain x64/build)
+/debug/
+/release/
+/x64/
+/3dCad/
+/build/
+/build-*/
+/_build/
+/_share/
+
+# qmake / Qt / MSVC generated files
+.qmake.stash
+.qmake.cache
+/Makefile
+/Makefile.*
+ui_*.h
+moc_*.cpp
+moc_*.h
+qrc_*.cpp
+*.obj
+*.o
+*.pdb
+*.ilk
+*.idb
+*.pch
+*.ipch
+*.exp
+*.tlog/
+*.exe
+*.exe.recipe
+*.vcxproj.FileListAbsolute.txt
+/deployment/package-integrity.json
+/runtime-integrity.json
+/sdk-integrity.json
+/build-record.json
+
+# Logs and generated robot / trajectory output
+*.log
+*.log.*
+/log/
+/logs/
+/demo_program.xpl
+/output.xpl
+/modified_output.xpl
+*.traj
+__pycache__/
+*.pyc
+
+# Local camera configuration: copy 0414_config.example.json before use
+/0414_config.json
+
+# Captured data is shared separately; these three OBJ files are test models
+/pcd/*
+!/pcd/test_cube.obj
+!/pcd/test_plane.obj
+!/pcd/test_cylinder_mesh.obj
+
+# Historical archive and obsolete Win32 helpers
+/3dCad.zip
+/Qt_32.props
+/msvc_make.bat

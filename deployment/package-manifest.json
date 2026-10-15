@@ -1,0 +1,39 @@
+{
+  "schemaVersion": 1,
+  "target": "windows-x64-release",
+  "include": [
+    "*.cpp", "*.h", "*.hpp", "*.ui", "*.pro", "*.sln", "*.vcxproj", "*.vcxproj.filters", "*.qrc",
+    "0414_config.json", "harmo_processing_design.md", "shaders/*",
+    "diagnostics/*.py", "diagnostics/*.cpp", "diagnostics/*.md",
+    "deployment/*.json", "deployment/*.py", "deployment/*.ps1",
+    "pcd/test_cube.obj", "pcd/test_plane.obj", "pcd/test_cylinder_mesh.obj",
+    "includes/glm/glm.pri", "includes/glm/glm/**/*",
+    "includes/glfw/include/**/*", "includes/glfw/lib-vc2015/glfw3dll.lib", "includes/glfw/lib-vc2015/glfw3.dll",
+    "includes/Intel RealSense SDK 2.0/include/**/*",
+    "includes/Intel RealSense SDK 2.0/lib/x64/realsense2.lib",
+    "includes/Intel RealSense SDK 2.0/bin/x64/realsense2.dll",
+    "includes/opencv/build/include/**/*",
+    "includes/opencv/build/x64/vc16/lib/opencv_world470.lib",
+    "includes/opencv/build/x64/vc16/bin/opencv_world470.dll",
+    "includes/opencv/build/x64/vc16/bin/opencv_videoio_ffmpeg470_64.dll",
+    "includes/opencv/build/x64/vc16/bin/opencv_videoio_msmf470_64.dll",
+    "includes/SDK V2.5/sdk-x64/include/**/*",
+    "includes/SDK V2.5/sdk-x64/libs/x64/EftSdk.lib", "includes/SDK V2.5/sdk-x64/libs/x64/EftSdk.dll",
+    "includes/SDK V2.5/sdk-x64/libs/x64/log4cpp.lib", "includes/SDK V2.5/sdk-x64/libs/x64/log4cpp.dll",
+    "includes/SDK V2.5/sdk-x64/libs/x64/rlibcpp-bcc.lib", "includes/SDK V2.5/sdk-x64/libs/x64/rlibcpp-bcc.dll",
+    "includes/SDK V2.5/sdk-x64/libs/x64/rlibcpp-tool.lib", "includes/SDK V2.5/sdk-x64/libs/x64/rlibcpp-tool.dll",
+    "includes/SDK V2.5/sdk-x64/libs/x64/NTEventLogAppender.dll", "includes/SDK V2.5/sdk-x64/libs/x64/log4cpp.nt.property",
+    "includes/KW_SDK_D_1.0/SDK_1.0/SDK_windows_1.0/lib/CPP/*",
+    "includes/robot/64/*"
+  ],
+  "exclude": ["ui_*.h", "moc_*.cpp", "moc_*.h", "qrc_*.cpp", "**/.DS_Store", "**/*.pdb", "**/*.exp", "**/*.obj", "**/__pycache__/**"],
+  "required": [
+    "3dCad.pro", "mainwindow.cpp", "HarmoMotionPlan.cpp", "HarmoMotionPlan.h", "HarmoRobot.cpp",
+    "XPLGenerator.cpp", "tinyxml2.cpp", "tinyxml2.h", "nanoflann.hpp", "resources.qrc",
+    "includes/glm/glm/detail/glm.cpp", "includes/glfw/lib-vc2015/glfw3dll.lib",
+    "includes/Intel RealSense SDK 2.0/lib/x64/realsense2.lib", "includes/Intel RealSense SDK 2.0/bin/x64/realsense2.dll",
+    "includes/opencv/build/x64/vc16/lib/opencv_world470.lib", "includes/opencv/build/x64/vc16/bin/opencv_world470.dll",
+    "includes/SDK V2.5/sdk-x64/libs/x64/EftSdk.lib", "includes/robot/64/libharmorobotservice.lib",
+    "deployment/preflight-windows.ps1", "deployment/build-windows.ps1", "deployment/deploy-runtime.ps1"
+  ]
+}

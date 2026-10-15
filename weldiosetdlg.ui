@@ -1,0 +1,625 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>WeldIOSetDlg</class>
+ <widget class="QDialog" name="WeldIOSetDlg">
+  <property name="geometry">
+   <rect>
+    <x>0</x>
+    <y>0</y>
+    <width>452</width>
+    <height>263</height>
+   </rect>
+  </property>
+  <property name="windowTitle">
+   <string>焊机IO配置</string>
+  </property>
+  <layout class="QVBoxLayout" name="verticalLayout_4">
+   <item>
+    <layout class="QVBoxLayout" name="verticalLayout_3">
+     <item>
+      <layout class="QVBoxLayout" name="verticalLayout">
+       <item>
+        <widget class="QLabel" name="label">
+         <property name="styleSheet">
+          <string notr="true">font: 25 12pt &quot;Adobe 宋体 Std L&quot;;</string>
+         </property>
+         <property name="text">
+          <string>输出</string>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="Line" name="line_2">
+         <property name="orientation">
+          <enum>Qt::Horizontal</enum>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <layout class="QHBoxLayout" name="horizontalLayout">
+         <item>
+          <widget class="QLabel" name="label_2">
+           <property name="minimumSize">
+            <size>
+             <width>57</width>
+             <height>37</height>
+            </size>
+           </property>
+           <property name="text">
+            <string>起弧：</string>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QComboBox" name="comboBox_Out_qihu">
+           <item>
+            <property name="text">
+             <string>DO1</string>
+            </property>
+           </item>
+           <item>
+            <property name="text">
+             <string>DO2</string>
+            </property>
+           </item>
+           <item>
+            <property name="text">
+             <string>DO3</string>
+            </property>
+           </item>
+           <item>
+            <property name="text">
+             <string>DO4</string>
+            </property>
+           </item>
+           <item>
+            <property name="text">
+             <string>DO5</string>
+            </property>
+           </item>
+           <item>
+            <property name="text">
+             <string>DO6</string>
+            </property>
+           </item>
+           <item>
+            <property name="text">
+             <string>DO7</string>
+            </property>
+           </item>
+           <item>
+            <property name="text">
+             <string>DO8</string>
+            </property>
+           </item>
+          </widget>
+         </item>
+         <item>
+          <widget class="QLabel" name="label_3">
+           <property name="text">
+            <string>送丝：</string>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QComboBox" name="comboBox_Out_songsi">
+           <item>
+            <property name="text">
+             <string>DO1</string>
+            </property>
+           </item>
+           <item>
+            <property name="text">
+             <string>DO2</string>
+            </property>
+           </item>
+           <item>
+            <property name="text">
+             <string>DO3</string>
+            </property>
+           </item>
+           <item>
+            <property name="text">
+             <string>DO4</string>
+            </property>
+           </item>
+           <item>
+            <property name="text">
+             <string>DO5</string>
+            </property>
+           </item>
+           <item>
+            <property name="text">
+             <string>DO6</string>
+            </property>
+           </item>
+           <item>
+            <property name="text">
+             <string>DO7</string>
+            </property>
+           </item>
+           <item>
+            <property name="text">
+             <string>DO8</string>
+            </property>
+           </item>
+          </widget>
+         </item>
+         <item>
+          <widget class="QLabel" name="label_4">
+           <property name="text">
+            <string>退丝：</string>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QComboBox" name="comboBox_Out_tuisi">
+           <item>
+            <property name="text">
+             <string>DO1</string>
+            </property>
+           </item>
+           <item>
+            <property name="text">
+             <string>DO2</string>
+            </property>
+           </item>
+           <item>
+            <property name="text">
+             <string>DO3</string>
+            </property>
+           </item>
+           <item>
+            <property name="text">
+             <string>DO4</string>
+            </property>
+           </item>
+           <item>
+            <property name="text">
+             <string>DO5</string>
+            </property>
+           </item>
+           <item>
+            <property name="text">
+             <string>DO6</string>
+            </property>
+           </item>
+           <item>
+            <property name="text">
+             <string>DO7</string>
+            </property>
+           </item>
+           <item>
+            <property name="text">
+             <string>DO8</string>
+            </property>
+           </item>
+          </widget>
+         </item>
+        </layout>
+       </item>
+       <item>
+        <layout class="QHBoxLayout" name="horizontalLayout_2">
+         <item>
+          <widget class="QLabel" name="label_5">
+           <property name="text">
+            <string>送气：</string>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QComboBox" name="comboBox_Out_songqi">
+           <item>
+            <property name="text">
+             <string>DO1</string>
+            </property>
+           </item>
+           <item>
+            <property name="text">
+             <string>DO2</string>
+            </property>
+           </item>
+           <item>
+            <property name="text">
+             <string>DO3</string>
+            </property>
+           </item>
+           <item>
+            <property name="text">
+             <string>DO4</string>
+            </property>
+           </item>
+           <item>
+            <property name="text">
+             <string>DO5</string>
+            </property>
+           </item>
+           <item>
+            <property name="text">
+             <string>DO6</string>
+            </property>
+           </item>
+           <item>
+            <property name="text">
+             <string>DO7</string>
+            </property>
+           </item>
+           <item>
+            <property name="text">
+             <string>DO8</string>
+            </property>
+           </item>
+          </widget>
+         </item>
+         <item>
+          <widget class="QLabel" name="label_6">
+           <property name="text">
+            <string>电压：</string>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QComboBox" name="comboBox_Out_dianya">
+           <item>
+            <property name="text">
+             <string>AO1</string>
+            </property>
+           </item>
+           <item>
+            <property name="text">
+             <string>AO2</string>
+            </property>
+           </item>
+           <item>
+            <property name="text">
+             <string>DO0</string>
+            </property>
+           </item>
+           <item>
+            <property name="text">
+             <string>DO1</string>
+            </property>
+           </item>
+           <item>
+            <property name="text">
+             <string>DO2</string>
+            </property>
+           </item>
+           <item>
+            <property name="text">
+             <string>DO3</string>
+            </property>
+           </item>
+           <item>
+            <property name="text">
+             <string>DO4</string>
+            </property>
+           </item>
+           <item>
+            <property name="text">
+             <string>DO5</string>
+            </property>
+           </item>
+           <item>
+            <property name="text">
+             <string>DO6</string>
+            </property>
+           </item>
+           <item>
+            <property name="text">
+             <string>DO7</string>
+            </property>
+           </item>
+           <item>
+            <property name="text">
+             <string/>
+            </property>
+           </item>
+          </widget>
+         </item>
+         <item>
+          <widget class="QLabel" name="label_7">
+           <property name="text">
+            <string>电流：</string>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QComboBox" name="comboBox_Out_dianliu">
+           <item>
+            <property name="text">
+             <string>AO2</string>
+            </property>
+           </item>
+           <item>
+            <property name="text">
+             <string>AO1</string>
+            </property>
+           </item>
+           <item>
+            <property name="text">
+             <string>DO0</string>
+            </property>
+           </item>
+           <item>
+            <property name="text">
+             <string>DO1</string>
+            </property>
+           </item>
+           <item>
+            <property name="text">
+             <string>DO2</string>
+            </property>
+           </item>
+           <item>
+            <property name="text">
+             <string>DO3</string>
+            </property>
+           </item>
+           <item>
+            <property name="text">
+             <string>DO4</string>
+            </property>
+           </item>
+           <item>
+            <property name="text">
+             <string>DO5</string>
+            </property>
+           </item>
+           <item>
+            <property name="text">
+             <string>DO6</string>
+            </property>
+           </item>
+           <item>
+            <property name="text">
+             <string>DO7</string>
+            </property>
+           </item>
+          </widget>
+         </item>
+        </layout>
+       </item>
+      </layout>
+     </item>
+     <item>
+      <layout class="QVBoxLayout" name="verticalLayout_2">
+       <item>
+        <widget class="Line" name="line">
+         <property name="orientation">
+          <enum>Qt::Horizontal</enum>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QLabel" name="label_8">
+         <property name="sizePolicy">
+          <sizepolicy hsizetype="Preferred" vsizetype="Minimum">
+           <horstretch>0</horstretch>
+           <verstretch>0</verstretch>
+          </sizepolicy>
+         </property>
+         <property name="styleSheet">
+          <string notr="true">font: 25 12pt &quot;Adobe 宋体 Std L&quot;;</string>
+         </property>
+         <property name="text">
+          <string>输入</string>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="Line" name="line_3">
+         <property name="orientation">
+          <enum>Qt::Horizontal</enum>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <layout class="QHBoxLayout" name="horizontalLayout_3">
+         <item>
+          <widget class="QLabel" name="label_9">
+           <property name="text">
+            <string>起弧反馈：</string>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QComboBox" name="comboBox_In_qihufankui">
+           <item>
+            <property name="text">
+             <string>AI1</string>
+            </property>
+           </item>
+           <item>
+            <property name="text">
+             <string>AI2</string>
+            </property>
+           </item>
+           <item>
+            <property name="text">
+             <string>AI3</string>
+            </property>
+           </item>
+           <item>
+            <property name="text">
+             <string>AI4</string>
+            </property>
+           </item>
+           <item>
+            <property name="text">
+             <string>AI5</string>
+            </property>
+           </item>
+           <item>
+            <property name="text">
+             <string>AI6</string>
+            </property>
+           </item>
+           <item>
+            <property name="text">
+             <string>AI7</string>
+            </property>
+           </item>
+           <item>
+            <property name="text">
+             <string>AI8</string>
+            </property>
+           </item>
+          </widget>
+         </item>
+         <item>
+          <widget class="QLabel" name="label_10">
+           <property name="text">
+            <string>电流反馈：</string>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QComboBox" name="comboBox_in_dianliufankui">
+           <item>
+            <property name="text">
+             <string>AI1</string>
+            </property>
+           </item>
+           <item>
+            <property name="text">
+             <string>AI2</string>
+            </property>
+           </item>
+           <item>
+            <property name="text">
+             <string>AI3</string>
+            </property>
+           </item>
+           <item>
+            <property name="text">
+             <string>AI4</string>
+            </property>
+           </item>
+           <item>
+            <property name="text">
+             <string>AI5</string>
+            </property>
+           </item>
+           <item>
+            <property name="text">
+             <string>AI6</string>
+            </property>
+           </item>
+           <item>
+            <property name="text">
+             <string>AI7</string>
+            </property>
+           </item>
+           <item>
+            <property name="text">
+             <string>AI8</string>
+            </property>
+           </item>
+          </widget>
+         </item>
+         <item>
+          <widget class="QLabel" name="label_11">
+           <property name="text">
+            <string>电压反馈：</string>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QComboBox" name="comboBox_In_dianyafankui">
+           <item>
+            <property name="text">
+             <string>AI1</string>
+            </property>
+           </item>
+           <item>
+            <property name="text">
+             <string>AI2</string>
+            </property>
+           </item>
+           <item>
+            <property name="text">
+             <string>AI3</string>
+            </property>
+           </item>
+           <item>
+            <property name="text">
+             <string>AI4</string>
+            </property>
+           </item>
+           <item>
+            <property name="text">
+             <string>AI5</string>
+            </property>
+           </item>
+           <item>
+            <property name="text">
+             <string>AI6</string>
+            </property>
+           </item>
+           <item>
+            <property name="text">
+             <string>AI7</string>
+            </property>
+           </item>
+           <item>
+            <property name="text">
+             <string>AI8</string>
+            </property>
+           </item>
+          </widget>
+         </item>
+        </layout>
+       </item>
+      </layout>
+     </item>
+    </layout>
+   </item>
+   <item>
+    <widget class="QDialogButtonBox" name="buttonBox">
+     <property name="orientation">
+      <enum>Qt::Horizontal</enum>
+     </property>
+     <property name="standardButtons">
+      <set>QDialogButtonBox::Cancel|QDialogButtonBox::Ok</set>
+     </property>
+    </widget>
+   </item>
+  </layout>
+ </widget>
+ <resources/>
+ <connections>
+  <connection>
+   <sender>buttonBox</sender>
+   <signal>accepted()</signal>
+   <receiver>WeldIOSetDlg</receiver>
+   <slot>accept()</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>248</x>
+     <y>254</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>157</x>
+     <y>274</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>buttonBox</sender>
+   <signal>rejected()</signal>
+   <receiver>WeldIOSetDlg</receiver>
+   <slot>reject()</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>316</x>
+     <y>260</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>286</x>
+     <y>274</y>
+    </hint>
+   </hints>
+  </connection>
+ </connections>
+</ui>
