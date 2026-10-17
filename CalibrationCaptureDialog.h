@@ -3,6 +3,7 @@
 #include "CalibrationCapturePolicy.h"
 #include "RealSenseCalibrationCamera.h"
 #include <QDialog>
+#include <QElapsedTimer>
 #include <QThread>
 #include <memory>
 #include <vector>
@@ -14,6 +15,7 @@ class QPushButton;
 class QSpinBox;
 class QDoubleSpinBox;
 class QCloseEvent;
+class QTimer;
 
 // Robot SDK calls stay on the GUI/robot thread. Camera and disk operations are
 // serialized on one worker thread so heartbeat timers remain responsive.
@@ -28,6 +30,10 @@ protected:
 
 private:
     void startSession();
+    void requestPreview();
+    void receivePreview(quint64 generation, bool success, const QImage& image, const QString& error);
+    void previewFailed(const QString& reason);
+    void stopPreview(const QString& message);
     void captureOne();
     bool readObservation(std::vector<calibration_capture::RobotSample>& destination);
     void collectSecondBefore();
@@ -47,6 +53,8 @@ private:
     QLabel* m_directoryLabel;
     QLabel* m_status;
     QLabel* m_preview;
+    QLabel* m_previewInfo;
+    QTimer* m_previewTimer;
     QLabel* m_countLabel;
     QPushButton* m_start;
     QPushButton* m_capture;
@@ -61,6 +69,11 @@ private:
     bool m_closeRequested = false;
     bool m_shutdownComplete = false;
     bool m_connectionLost = false;
+    bool m_previewPending = false;
+    quint64 m_previewGeneration = 0;
+    QElapsedTimer m_previewAge;
+    QImage m_previewImage;
+    QString m_previewError;
     int m_count = 0;
     std::vector<calibration_capture::RobotSample> m_before;
     std::vector<calibration_capture::RobotSample> m_after;

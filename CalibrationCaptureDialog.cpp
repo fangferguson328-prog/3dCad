@@ -15,6 +15,7 @@
 #include <QPixmap>
 #include <QPushButton>
 #include <QSettings>
+#include <QSizePolicy>
 #include <QSpinBox>
 #include <QStandardPaths>
 #include <QTimer>
@@ -49,8 +50,12 @@ CalibrationCaptureDialog::CalibrationCaptureDialog(HarmoRobot* robot, QWidget* p
     m_directoryLabel->setTextInteractionFlags(Qt::TextSelectableByMouse);
     layout->addWidget(m_directoryLabel);
     m_countLabel = new QLabel(QString::fromUtf8(u8"有效样本：0"), this); layout->addWidget(m_countLabel);
-    m_preview = new QLabel(QString::fromUtf8(u8"采集后显示照片预览"), this);
+    m_previewInfo = new QLabel(QString::fromUtf8(u8"启动相机后显示实时画面，先确认棋盘格完整可见，再采集。"), this);
+    m_previewInfo->setWordWrap(true); m_previewInfo->setTextFormat(Qt::PlainText);
+    layout->addWidget(m_previewInfo);
+    m_preview = new QLabel(QString::fromUtf8(u8"等待启动相机"), this);
     m_preview->setMinimumSize(480, 270); m_preview->setAlignment(Qt::AlignCenter);
+    m_preview->setSizePolicy(QSizePolicy::Ignored, QSizePolicy::Ignored);
     m_preview->setStyleSheet("QLabel { background:#20252b; color:#d9e0e7; border:1px solid #59616b; }");
     layout->addWidget(m_preview, 1);
     m_status = new QLabel(QString::fromUtf8(u8"请先连接 Harmo 机械臂，关闭占用 RealSense 的 Windows 相机或其他软件。"), this);
@@ -83,6 +88,9 @@ CalibrationCaptureDialog::CalibrationCaptureDialog(HarmoRobot* robot, QWidget* p
     m_worker->moveToThread(&m_workerThread);
     connect(&m_workerThread, &QThread::finished, m_worker, &QObject::deleteLater);
     m_workerThread.start();
+    m_previewTimer = new QTimer(this);
+    m_previewTimer->setInterval(66);
+    connect(m_previewTimer, &QTimer::timeout, this, [this]() { requestPreview(); });
     updateButtons();
     requireRobotConnection("window_open");
 }
@@ -128,6 +136,7 @@ bool CalibrationCaptureDialog::requireRobotConnection(const char* stage)
     }
     m_connectionLost = true;
     m_busy = false;
+    stopPreview(QString::fromUtf8(u8"机械臂连接断开，预览已停止。"));
     updateButtons();
     m_status->setText(QString::fromUtf8(u8"机械臂连接已断开，已禁用采集。请点击“结束并关闭”，回到主窗口重新连接机械臂，再打开标定采集。已保存的样本仍保留。"));
     return false;
@@ -188,6 +197,9 @@ void CalibrationCaptureDialog::startSession()
             if (ok) {
                 m_status->setText(QString::fromUtf8(u8"相机就绪（序列号：%1）。机械臂停稳后可采集。查询使用零 TCP，无需修改加工工具。" ).arg(serial));
                 m_robot->logDiagnosticEvent("CALIBRATION_SESSION", "directory=" + directory + " camera_serial=" + serial);
+                m_previewAge.start();
+                m_previewTimer->start();
+                requestPreview();
             } else {
                 m_status->setText(QString::fromUtf8(u8"启动失败：") + error);
                 m_robot->logDiagnosticEvent("CALIBRATION_START_FAILED", error);
@@ -195,6 +207,77 @@ void CalibrationCaptureDialog::startSession()
             updateButtons();
         }, Qt::QueuedConnection);
     }, Qt::QueuedConnection);
+}
+
+void CalibrationCaptureDialog::requestPreview()
+{
+    if (!m_started || m_busy || m_closeRequested || m_connectionLost) return;
+    if (!requireRobotConnection("preview")) return;
+    // A missing frame is normal between camera ticks. A stale picture must
+    // not continue to look like a live view if the camera stops delivering.
+    if (m_previewError.isEmpty() && m_previewAge.isValid() && m_previewAge.elapsed() > 2000)
+        previewFailed(QString::fromUtf8(u8"连续 2 秒未收到新画面，请检查相机连接。"));
+    if (m_previewPending) return;
+    m_previewPending = true;
+    const quint64 generation = m_previewGeneration;
+    const bool queued = QMetaObject::invokeMethod(m_worker, [this, generation]() {
+        QImage image;
+        QString error;
+        bool ok = false;
+        if (m_camera) ok = m_camera->pollPreviewFrame(image, error);
+        else error = QString::fromUtf8(u8"相机尚未启动。");
+        QMetaObject::invokeMethod(this, [this, generation, ok, image, error]() {
+            receivePreview(generation, ok, image, error);
+        }, Qt::QueuedConnection);
+    }, Qt::QueuedConnection);
+    if (!queued) {
+        m_previewPending = false;
+        previewFailed(QString::fromUtf8(u8"无法向相机线程提交预览请求。"));
+    }
+}
+
+void CalibrationCaptureDialog::receivePreview(quint64 generation, bool success,
+                                             const QImage& image, const QString& error)
+{
+    m_previewPending = false;
+    if (m_closeRequested || m_connectionLost || m_busy || !m_started
+        || generation != m_previewGeneration) return;
+    if (!success) {
+        previewFailed(error.isEmpty() ? QString::fromUtf8(u8"相机未返回预览详情。") : error);
+        return;
+    }
+    if (image.isNull()) return; // Nonblocking poll: no new frame yet.
+    if (!m_previewError.isEmpty() && m_robot)
+        m_robot->logDiagnosticEvent("CALIBRATION_PREVIEW_RECOVERED", "new_frame=true");
+    m_previewError.clear();
+    m_previewAge.start();
+    m_previewImage = image;
+    m_preview->setPixmap(QPixmap::fromImage(m_previewImage).scaled(
+        m_preview->size(), Qt::KeepAspectRatio, Qt::SmoothTransformation));
+    m_previewInfo->setText(QString::fromUtf8(u8"实时预览 · 请确认棋盘格完整可见、清晰且没有反光；机械臂停稳后采集。"));
+}
+
+void CalibrationCaptureDialog::previewFailed(const QString& reason)
+{
+    if (m_previewError != reason && m_robot)
+        m_robot->logDiagnosticEvent("CALIBRATION_PREVIEW_FAILED", "reason=" + reason);
+    m_previewError = reason;
+    m_previewImage = QImage();
+    m_preview->clear();
+    m_preview->setText(QString::fromUtf8(u8"当前无实时画面"));
+    m_previewInfo->setText(QString::fromUtf8(u8"预览异常：") + reason);
+}
+
+void CalibrationCaptureDialog::stopPreview(const QString& message)
+{
+    m_previewTimer->stop();
+    ++m_previewGeneration;
+    m_previewAge.invalidate();
+    m_previewImage = QImage();
+    m_previewError.clear();
+    m_preview->clear();
+    m_preview->setText(message);
+    m_previewInfo->setText(message);
 }
 
 QString CalibrationCaptureDialog::explainPolicyFailure(const std::string& reason) const
@@ -235,6 +318,13 @@ void CalibrationCaptureDialog::captureOne()
 {
     if (!m_started || m_busy || m_closeRequested) return;
     if (!requireRobotConnection("capture_begin")) return;
+    ++m_previewGeneration;
+    m_previewAge.invalidate();
+    m_previewError.clear();
+    m_previewImage = QImage();
+    m_preview->clear();
+    m_preview->setText(QString::fromUtf8(u8"正在采集新画面……"));
+    m_previewInfo->setText(QString::fromUtf8(u8"正在采集并检查位姿，实时预览暂时暂停……"));
     m_busy = true; m_before.clear(); m_after.clear(); m_frame = CalibrationColorFrame();
     m_attemptId = QUuid::createUuid().toString(QUuid::WithoutBraces);
     updateButtons();
@@ -272,6 +362,7 @@ void CalibrationCaptureDialog::receiveFrame(bool success, const CalibrationColor
     if (!success) { failCapture(QString::fromUtf8(u8"拍照失败：") + error); return; }
     m_frame = frame;
     m_preview->setPixmap(QPixmap::fromImage(frame.image).scaled(m_preview->size(), Qt::KeepAspectRatio, Qt::SmoothTransformation));
+    m_previewInfo->setText(QString::fromUtf8(u8"本次采集画面 · 正在检查位姿并保存。"));
     if (!readObservation(m_after)) return;
     m_status->setText(QString::fromUtf8(u8"正在检查拍照后的静止位姿……"));
     QTimer::singleShot(150, this, [this]() { collectSecondAfter(); });
@@ -301,6 +392,10 @@ void CalibrationCaptureDialog::collectSecondAfter()
             m_robot->logDiagnosticEvent("CALIBRATION_CAPTURE_SAVED", "attempt=" + m_attemptId + " directory=" + directory);
             if (!requireRobotConnection("sample_saved")) return;
             m_status->setText(QString::fromUtf8(u8"第 %1 组已保存：%2\n可示教到下一个拍摄位置，停稳后继续采集。" ).arg(m_count).arg(directory));
+            m_previewAge.start();
+            m_previewError.clear();
+            m_previewInfo->setText(QString::fromUtf8(u8"采集完成，正在恢复实时预览……"));
+            requestPreview();
         }, Qt::QueuedConnection);
     }, Qt::QueuedConnection);
 }
@@ -311,12 +406,19 @@ void CalibrationCaptureDialog::failCapture(const QString& reason)
     if (m_robot) m_robot->logDiagnosticEvent("CALIBRATION_CAPTURE_REJECTED", "attempt=" + m_attemptId + " reason=" + reason);
     if (!requireRobotConnection("capture_failure")) return;
     m_status->setText(QString::fromUtf8(u8"未保存有效样本：") + reason);
+    if (m_started) {
+        m_previewAge.start();
+        m_previewError.clear();
+        m_previewInfo->setText(QString::fromUtf8(u8"本次采集已结束，正在恢复实时预览……"));
+        requestPreview();
+    }
 }
 
 void CalibrationCaptureDialog::requestClose()
 {
     if (m_closeRequested) return;
     m_closeRequested = true; updateButtons();
+    stopPreview(QString::fromUtf8(u8"正在关闭预览并释放相机……"));
     m_status->setText(QString::fromUtf8(u8"正在结束当前操作并释放相机……"));
     QMetaObject::invokeMethod(m_worker, [this]() {
         if (m_camera) m_camera->stop();

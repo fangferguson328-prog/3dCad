@@ -2,9 +2,9 @@
 """Exercise production HarmoRobot logging with local Qt/SDK boundary substitutes.
 
 Compiles the actual HarmoRobot.h/.cpp after removing their include directives,
-plus the actual calibration dialog observation/connection methods. Button-enable
-and status-text decisions use minimal widget boundaries; actual Qt widgets,
-queued events, worker scheduling, and storage commits are not exercised.
+plus the actual calibration dialog observation/connection/preview methods.
+Button, preview and queued-callback decisions use minimal widget and queue
+boundaries; actual Qt widgets, worker scheduling, and storage commits are not exercised.
 The substitutes use real temporary files, a deterministic clock, and an in-memory
 robot controller. This checks orchestration and log content, not Qt ABI, the
 Windows SDK binary, network behavior, or physical motion.
@@ -24,6 +24,7 @@ SHIM = r'''
 #include <array>
 #include <cmath>
 #include <cstdint>
+#include <deque>
 #include <filesystem>
 #include <fstream>
 #include <functional>
@@ -46,7 +47,7 @@ namespace Mock {
     std::vector<std::string> calls, warnings;
     std::vector<std::array<float,6>> positionTcpRequests;
     std::map<std::string, bool> success;
-    bool writeFails = false, flushFails = false;
+    bool writeFails = false, flushFails = false, rejectQueuedInvoke = false;
     qint64 stateDelayMs = 0, positionDelayMs = 0;
     bool result(const std::string& name) {
         calls.push_back(name);
@@ -240,6 +241,7 @@ public:
     qint64 restart() { qint64 result=elapsed();start();return result; }
     qint64 elapsed() const { return Mock::now-start_; }
     bool isValid() const { return valid_; }
+    void invalidate() { valid_=false; }
 };
 class QCoreApplication {
 public:
@@ -270,6 +272,44 @@ public:
     template<class Sender,class Signal,class Context,class Slot>
     static void connect(Sender* sender,Signal signal,Context* context,Slot slot) { sender->mockConnect(signal,context,slot); }
     virtual ~QObject() = default;
+};
+namespace Qt {
+    enum ConnectionType { QueuedConnection };
+    enum AspectRatioMode { KeepAspectRatio };
+    enum TransformationMode { SmoothTransformation };
+}
+class QImage {
+    int id_=0;
+public:
+    QImage() = default;
+    explicit QImage(int id): id_(id) {}
+    bool isNull() const { return id_==0; }
+    int id() const { return id_; }
+};
+class QPixmap {
+    int id_=0;
+public:
+    QPixmap() = default;
+    explicit QPixmap(int id): id_(id) {}
+    static QPixmap fromImage(const QImage& image) { return QPixmap(image.id()); }
+    QPixmap scaled(int, Qt::AspectRatioMode, Qt::TransformationMode) const { return *this; }
+    int id() const { return id_; }
+};
+class QMetaObject {
+    inline static std::deque<std::function<void()>> queued_;
+public:
+    template<class Target,class Callback>
+    static bool invokeMethod(Target*,Callback callback,Qt::ConnectionType) {
+        if(Mock::rejectQueuedInvoke)return false;
+        queued_.emplace_back(callback);
+        return true;
+    }
+    static std::size_t pending() { return queued_.size(); }
+    static void clear() { queued_.clear(); }
+    static void runOne() {
+        if(queued_.empty())throw std::runtime_error("no queued callback");
+        auto callback=std::move(queued_.front());queued_.pop_front();callback();
+    }
 };
 class QTimer: public QObject {
     std::function<void()> callback_;
@@ -361,7 +401,7 @@ namespace Mock {
     bool alarmOnMove=false;
     void reset() {
         now=1000; calls.clear(); warnings.clear(); success.clear(); positionTcpRequests.clear();
-        writeFails=false;flushFails=false;
+        writeFails=false;flushFails=false;rejectQueuedInvoke=false;
         state=st_RobotState{};position=st_RobotPosition{};
         motor=5;errorCode=731;alarmOnMove=false;stateDelayMs=0;positionDelayMs=0;
     }
@@ -426,13 +466,36 @@ bool sampleIsUsable(const RobotSample& sample,std::string& reason) {
 struct DialogWidgetBoundary {
     bool enabled=true;
     QString text;
+    int pixmapId=0;
     void setEnabled(bool value) { enabled=value; }
-    void setText(const QString& value) { text=value; }
+    void setText(const QString& value) { text=value; pixmapId=0; }
+    void setPixmap(const QPixmap& value) { pixmapId=value.id(); text.clear(); }
+    void clear() { text.clear(); pixmapId=0; }
+    int size() const { return 1; }
+};
+struct PreviewTimerBoundary {
+    bool active=false;
+    void start() { active=true; }
+    void stop() { active=false; }
+};
+struct PreviewCameraBoundary {
+    struct Frame { bool ok; QImage image; QString error; };
+    std::deque<Frame> frames;
+    int polls=0;
+    bool pollPreviewFrame(QImage& image,QString& error) {
+        ++polls;
+        if(frames.empty()) { image=QImage();error.clear();return true; }
+        Frame frame=frames.front();frames.pop_front();
+        image=frame.image;error=frame.error;return frame.ok;
+    }
 };
 class CalibrationCaptureDialog {
     HarmoRobot* m_robot;
 public:
-    DialogWidgetBoundary start,capture,openDirectory,columns,rows,squareSize,status;
+    DialogWidgetBoundary start,capture,openDirectory,columns,rows,squareSize,status,preview,previewInfo;
+    PreviewTimerBoundary previewTimer;
+    PreviewCameraBoundary camera;
+    QObject worker;
     DialogWidgetBoundary* m_start=&start;
     DialogWidgetBoundary* m_capture=&capture;
     DialogWidgetBoundary* m_openDirectory=&openDirectory;
@@ -440,13 +503,29 @@ public:
     DialogWidgetBoundary* m_rows=&rows;
     DialogWidgetBoundary* m_squareSize=&squareSize;
     DialogWidgetBoundary* m_status=&status;
+    DialogWidgetBoundary* m_preview=&preview;
+    DialogWidgetBoundary* m_previewInfo=&previewInfo;
+    PreviewTimerBoundary* m_previewTimer=&previewTimer;
+    PreviewCameraBoundary* m_camera=&camera;
+    QObject* m_worker=&worker;
     QString m_directory,m_attemptId;
     bool m_started=false,m_busy=false,m_closeRequested=false,m_connectionLost=false;
+    bool m_previewPending=false;
+    quint64 m_previewGeneration=0;
+    QElapsedTimer m_previewAge;
+    QImage m_previewImage;
+    QString m_previewError;
+    int m_count=0;
+    std::vector<calibration_capture::RobotSample> m_before,m_after;
     QString failure;
     int failureCount=0;
     explicit CalibrationCaptureDialog(HarmoRobot* robot):m_robot(robot) {}
     bool readObservation(std::vector<calibration_capture::RobotSample>& destination);
     bool requireRobotConnection(const char* stage);
+    void requestPreview();
+    void receivePreview(quint64 generation,bool success,const QImage& image,const QString& error);
+    void previewFailed(const QString& reason);
+    void stopPreview(const QString& message);
     void updateButtons();
     void failCapture(const QString& reason) { failure=reason; ++failureCount; }
     QString explainPolicyFailure(const std::string& reason) const {
@@ -802,6 +881,136 @@ void dialogDisconnectGuard(const std::filesystem::path& root) {
     require(dialog.status.text==disconnectedStatus,"late startup guard overwrote disconnected status");
     contains(readLog(robot),"CALIBRATION_CONNECTION_LOST","connection loss guard was not logged");
 }
+void runPreviewReply() {
+    require(QMetaObject::pending()==1,"preview worker was not queued exactly once");
+    QMetaObject::runOne(); // Worker performs one nonblocking camera poll.
+    require(QMetaObject::pending()==1,"preview GUI callback was not queued exactly once");
+    QMetaObject::runOne(); // GUI receives the result.
+    require(QMetaObject::pending()==0,"preview left an unexpected queued callback");
+}
+void dialogPreviewSingleInflight(const std::filesystem::path& root) {
+    Mock::reset();QMetaObject::clear();initializePaths(root);
+    HarmoRobot robot(1,"test","127.0.0.1");start(robot);
+    Mock::calls.clear();Mock::positionTcpRequests.clear();
+    CalibrationCaptureDialog dialog(&robot);
+    dialog.m_started=true;dialog.m_previewAge.start();dialog.m_previewTimer->start();
+    dialog.m_count=7;dialog.m_before.resize(1);
+    dialog.camera.frames.push_back({true,QImage(101),QString()});
+    dialog.requestPreview();
+    require(dialog.m_previewPending && QMetaObject::pending()==1,"first preview request did not become inflight");
+    dialog.requestPreview();dialog.requestPreview();
+    require(QMetaObject::pending()==1,"timer ticks accumulated worker preview requests");
+    QMetaObject::runOne();
+    require(dialog.camera.polls==1 && QMetaObject::pending()==1,"worker polled camera more than once");
+    dialog.requestPreview();
+    require(QMetaObject::pending()==1,"timer tick accumulated behind pending GUI reply");
+    QMetaObject::runOne();
+    require(!dialog.m_previewPending && dialog.m_previewImage.id()==101 &&
+            dialog.preview.pixmapId==101,"successful preview did not display the new frame");
+    require(dialog.m_count==7 && dialog.m_before.size()==1 && dialog.m_after.empty(),
+            "preview altered capture samples or saved count");
+    require(Mock::calls.empty() && Mock::positionTcpRequests.empty(),
+            "preview queried or commanded the robot");
+
+    // Even while the worker is slow, the timeout clears an old picture before
+    // the single pending-request guard; it must not enqueue another request.
+    dialog.camera.frames.push_back({true,QImage(102),QString()});
+    dialog.requestPreview();
+    Mock::now+=2001;
+    dialog.requestPreview();
+    require(dialog.m_previewPending && QMetaObject::pending()==1 && dialog.preview.pixmapId==0 &&
+            !dialog.m_previewError.isEmpty(),"slow preview kept a stale image or queued another poll");
+    runPreviewReply();
+    require(dialog.preview.pixmapId==102 && dialog.m_previewError.isEmpty(),
+            "new camera frame did not recover from the age timeout");
+}
+void dialogPreviewBusyAndEpoch(const std::filesystem::path& root) {
+    Mock::reset();QMetaObject::clear();initializePaths(root);
+    HarmoRobot robot(1,"test","127.0.0.1");start(robot);
+    Mock::calls.clear();Mock::positionTcpRequests.clear();
+    CalibrationCaptureDialog dialog(&robot);
+    dialog.m_started=true;dialog.m_previewAge.start();
+    dialog.m_busy=true;dialog.requestPreview();
+    require(QMetaObject::pending()==0 && dialog.camera.polls==0,
+            "capture-busy dialog submitted a preview poll");
+    dialog.m_busy=false;
+    dialog.camera.frames.push_back({true,QImage(201),QString()});
+    dialog.requestPreview();
+    const quint64 obsoleteGeneration=dialog.m_previewGeneration;
+    ++dialog.m_previewGeneration; // captureOne invalidates the old callback.
+    dialog.m_busy=true;
+    runPreviewReply();
+    require(!dialog.m_previewPending && dialog.preview.pixmapId==0 &&
+            dialog.m_previewImage.isNull() && obsoleteGeneration!=dialog.m_previewGeneration,
+            "stale preview callback replaced the capture picture");
+    dialog.requestPreview();
+    require(QMetaObject::pending()==0,"capture-busy dialog resumed live polling");
+    dialog.m_busy=false;
+    dialog.camera.frames.push_back({true,QImage(202),QString()});
+    dialog.requestPreview();
+    dialog.m_closeRequested=true;
+    runPreviewReply();
+    require(dialog.preview.pixmapId==0,"late callback painted over a closing dialog");
+    require(Mock::calls.empty() && Mock::positionTcpRequests.empty(),
+            "busy/stale preview path queried or commanded the robot");
+}
+void dialogPreviewLossAndStop(const std::filesystem::path& root) {
+    Mock::reset();QMetaObject::clear();initializePaths(root);
+    HarmoRobot robot(1,"test","127.0.0.1");start(robot);
+    CalibrationCaptureDialog dialog(&robot);
+    dialog.m_started=true;dialog.m_previewAge.start();dialog.m_previewTimer->start();
+    dialog.receivePreview(0,true,QImage(301),QString());
+    require(dialog.preview.pixmapId==301,"preview loss test did not start with a picture");
+    dialog.camera.frames.push_back({true,QImage(302),QString()});
+    dialog.requestPreview();
+    Mock::success["heartbeat"]=false;
+    QTimer::fireLatest(); // Production HarmoRobot heartbeat disconnects.
+    require(!dialog.requireRobotConnection("preview"),"preview ignored robot connection loss");
+    require(dialog.m_connectionLost && !dialog.previewTimer.active &&
+            !dialog.m_previewAge.isValid() && dialog.m_previewImage.isNull() &&
+            dialog.preview.pixmapId==0 && !dialog.preview.text.isEmpty(),
+            "stopPreview left an old picture, timer, or age after connection loss");
+    runPreviewReply();
+    require(dialog.preview.pixmapId==0 && dialog.m_previewImage.isNull() &&
+            !dialog.m_previewPending,"late camera reply revived preview after connection loss");
+    dialog.requestPreview();
+    require(QMetaObject::pending()==0,"disconnected dialog queued another preview");
+}
+void dialogPreviewErrorAndRecovery(const std::filesystem::path& root) {
+    Mock::reset();QMetaObject::clear();initializePaths(root);
+    HarmoRobot robot(1,"test","127.0.0.1");start(robot);
+    Mock::calls.clear();Mock::positionTcpRequests.clear();
+    CalibrationCaptureDialog dialog(&robot);
+    dialog.m_started=true;dialog.m_previewAge.start();
+    dialog.receivePreview(0,true,QImage(401),QString());
+    dialog.camera.frames.push_back({false,QImage(),"mock camera failure"});
+    dialog.requestPreview();runPreviewReply();
+    require(dialog.preview.pixmapId==0 && dialog.m_previewImage.isNull() &&
+            !dialog.m_previewError.isEmpty(),"preview failure retained the old picture");
+    contains(dialog.previewInfo.text.toStdString(),u8"预览异常","preview failure did not explain the error");
+    const QString sdkError=dialog.m_previewError;
+    const auto failureEvents=lines(readLog(robot)," CALIBRATION_PREVIEW_FAILED ").size();
+    Mock::now+=2001; // SDK error should remain the visible reason after the age threshold.
+    dialog.camera.frames.push_back({true,QImage(),QString()});
+    dialog.requestPreview();runPreviewReply();
+    require(dialog.preview.pixmapId==0 && dialog.m_previewError==sdkError &&
+            lines(readLog(robot)," CALIBRATION_PREVIEW_FAILED ").size()==failureEvents,
+            "empty poll or stale timeout hid/relogged the SDK failure");
+    dialog.camera.frames.push_back({true,QImage(402),QString()});
+    dialog.requestPreview();runPreviewReply();
+    require(dialog.preview.pixmapId==402 && dialog.m_previewImage.id()==402 &&
+            dialog.m_previewError.isEmpty(),"preview did not recover on the next actual frame");
+    contains(readLog(robot),"CALIBRATION_PREVIEW_RECOVERED","successful recovery was not logged");
+    require(Mock::calls.empty() && Mock::positionTcpRequests.empty() &&
+            dialog.m_before.empty() && dialog.m_after.empty() && dialog.m_count==0,
+            "preview performed a robot query or changed the capture dataset");
+
+    Mock::rejectQueuedInvoke=true;
+    dialog.requestPreview();
+    require(!dialog.m_previewPending && QMetaObject::pending()==0 &&
+            dialog.preview.pixmapId==0 && !dialog.m_previewError.isEmpty(),
+            "failed worker enqueue retained pending state or old picture");
+}
 int main(int argc,char** argv) {
     try {
         require(argc==2,"temporary output root argument required");
@@ -830,6 +1039,14 @@ int main(int argc,char** argv) {
         dialogSuccessfulObservation(root/"dialog-success");std::cout<<"PASS production dialog appends one successful observation\n";
         dialogDisconnectGuard(root/"dialog-disconnect-guard");
         std::cout<<"PASS production connection guard disables controls and rejects late startup after reconnect\n";
+        dialogPreviewSingleInflight(root/"preview-single-inflight");
+        std::cout<<"PASS production preview keeps one poll inflight and clears stale frames\n";
+        dialogPreviewBusyAndEpoch(root/"preview-busy-epoch");
+        std::cout<<"PASS production preview ignores capture-busy and obsolete or closing callbacks\n";
+        dialogPreviewLossAndStop(root/"preview-loss-stop");
+        std::cout<<"PASS production preview stops and cannot revive after robot connection loss\n";
+        dialogPreviewErrorAndRecovery(root/"preview-error-recovery");
+        std::cout<<"PASS production preview handles poll error, no frame, recovery, and enqueue failure\n";
     } catch(const std::exception& error) { std::cerr<<"FAIL "<<error.what()<<"\n"; return 1; }
 }
 '''
@@ -869,6 +1086,27 @@ def dialog_connection_methods(source):
     return "\n".join(methods)
 
 
+def dialog_preview_methods(source):
+    pattern = (r"^void CalibrationCaptureDialog::requestPreview\(\).*?"
+               r"(?=^QString CalibrationCaptureDialog::explainPolicyFailure\b)")
+    matches = re.findall(pattern, source, flags=re.MULTILINE | re.DOTALL)
+    if len(matches) != 1 or matches[0].count("CalibrationCaptureDialog::") != 4:
+        raise RuntimeError("expected the four consecutive production dialog preview methods")
+    return matches[0].strip()
+
+
+def require_capture_invalidates_preview(source):
+    pattern = (r"^void CalibrationCaptureDialog::captureOne\(\).*?"
+               r"(?=^void CalibrationCaptureDialog::collectSecondBefore\(\))")
+    matches = re.findall(pattern, source, flags=re.MULTILINE | re.DOTALL)
+    if len(matches) != 1:
+        raise RuntimeError("expected one production captureOne method")
+    invalidation = matches[0].find("++m_previewGeneration")
+    busy = matches[0].find("m_busy = true")
+    if invalidation < 0 or busy < 0 or invalidation > busy:
+        raise RuntimeError("captureOne must invalidate older preview callbacks before becoming busy")
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--root", type=Path, default=Path(__file__).resolve().parents[1])
@@ -878,6 +1116,8 @@ def main():
     compiler = shutil.which(args.compiler)
     if not compiler:
         parser.error("C++ compiler not found: " + args.compiler)
+    dialog_source = read_source(args.root / "CalibrationCaptureDialog.cpp")
+    require_capture_invalidates_preview(dialog_source)
     source = "\n".join([
         SHIM,
         '#include "CalibrationCapturePolicy.h"',
@@ -888,9 +1128,11 @@ def main():
         remove_includes(read_source(args.root / "HarmoRobot.cpp")),
         DIALOG_BOUNDARY,
         '#line 1 "CalibrationCaptureDialog_readObservation.cpp"',
-        dialog_read_observation(read_source(args.root / "CalibrationCaptureDialog.cpp")),
+        dialog_read_observation(dialog_source),
+        '#line 1 "CalibrationCaptureDialog_preview_methods.cpp"',
+        dialog_preview_methods(dialog_source),
         '#line 1 "CalibrationCaptureDialog_connection_methods.cpp"',
-        dialog_connection_methods(read_source(args.root / "CalibrationCaptureDialog.cpp")),
+        dialog_connection_methods(dialog_source),
         '#line 1 "logging_harness.cpp"',
         CASES,
     ])

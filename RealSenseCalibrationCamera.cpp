@@ -170,6 +170,29 @@ struct RealSenseCalibrationCamera::Impl {
         return true;
     }
 
+    QImage copyColorImage(const rs2::video_frame& color) const
+    {
+        if (!color)
+            throw std::runtime_error("The color frame is empty.");
+        const rs2::video_stream_profile profile = color.get_profile().as<rs2::video_stream_profile>();
+        if (!profile || profile.stream_type() != RS2_STREAM_COLOR
+            || profile.width() != kWidth || profile.height() != kHeight
+            || profile.format() != RS2_FORMAT_RGB8 || profile.fps() != kFps
+            || color.get_width() != kWidth || color.get_height() != kHeight
+            || color.get_bits_per_pixel() != 24)
+            throw std::runtime_error("The received color frame does not match the fixed raw RGB8 profile.");
+        const int stride = color.get_stride_in_bytes();
+        const std::int64_t requiredBytes = static_cast<std::int64_t>(stride) * kHeight;
+        if (stride < kWidth * 3 || color.get_data_size() < requiredBytes || !color.get_data())
+            throw std::runtime_error("The received RGB8 frame has an invalid buffer or row stride.");
+        const QImage borrowed(static_cast<const unsigned char*>(color.get_data()),
+                              kWidth, kHeight, stride, QImage::Format_RGB888);
+        const QImage image = borrowed.copy();
+        if (image.isNull())
+            throw std::runtime_error("Could not allocate an independent RGB8 color image.");
+        return image;
+    }
+
     void drain()
     {
         const std::int64_t deadline = calibration_capture::monotonicNowNs()
@@ -403,6 +426,29 @@ QString RealSenseCalibrationCamera::serial() const
     return impl_->selectedSerial;
 }
 
+bool RealSenseCalibrationCamera::pollPreviewFrame(QImage& image, QString& error)
+{
+    image = QImage();
+    error.clear();
+    try {
+        impl_->requireStarted();
+        rs2::frameset frames;
+        if (!impl_->pipeline->poll_for_frames(&frames))
+            return true;
+        rs2::video_frame color{rs2::frame()};
+        if (!impl_->observeNewColor(frames, color))
+            return true;
+        image = impl_->copyColorImage(color);
+        return true;
+    } catch (const std::exception& exception) {
+        error = QStringLiteral("Cannot read the calibration camera preview: ") + text(exception.what());
+        return false;
+    } catch (...) {
+        error = QStringLiteral("Cannot read the calibration camera preview: unknown SDK error.");
+        return false;
+    }
+}
+
 bool RealSenseCalibrationCamera::prepareFreshCapture(QString& error)
 {
     error.clear();
@@ -444,20 +490,9 @@ bool RealSenseCalibrationCamera::captureFreshFrame(CalibrationColorFrame& output
         result.timing.frameNumber = color.get_frame_number();
         if (!std::isfinite(result.timing.deviceTimestampMs))
             throw std::runtime_error("The color frame has a non-finite device timestamp.");
+        result.image = impl_->copyColorImage(color);
         const rs2::video_stream_profile profile = color.get_profile().as<rs2::video_stream_profile>();
-        if (!profile || profile.width() != kWidth || profile.height() != kHeight
-            || profile.format() != RS2_FORMAT_RGB8 || profile.fps() != kFps
-            || color.get_width() != kWidth || color.get_height() != kHeight
-            || color.get_bits_per_pixel() != 24)
-            throw std::runtime_error("The received color frame does not match the fixed raw RGB8 profile.");
         const int stride = color.get_stride_in_bytes();
-        if (stride < kWidth * 3 || color.get_data_size() < stride * kHeight || !color.get_data())
-            throw std::runtime_error("The received RGB8 frame has an invalid buffer or row stride.");
-        const QImage borrowed(static_cast<const unsigned char*>(color.get_data()),
-                              kWidth, kHeight, stride, QImage::Format_RGB888);
-        result.image = borrowed.copy();
-        if (result.image.isNull())
-            throw std::runtime_error("Could not allocate an independent RGB8 calibration image.");
 
         result.metadata = impl_->staticMetadata;
         result.metadata.insert(QStringLiteral("profile"), profileMetadata(profile));

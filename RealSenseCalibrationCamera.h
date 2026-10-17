@@ -28,6 +28,10 @@ public:
     bool isStarted() const;
     QString serial() const;
 
+    // Nonblocking: true with a null image means no new color frame is ready.
+    // Uses the same worker/pipeline as capture; does not establish capture timing.
+    bool pollPreviewFrame(QImage& image, QString& error);
+
     // Call before reading the robot's "before" samples. This preparation is not
     // the capture timestamp; captureFreshFrame establishes its own wait start.
     bool prepareFreshCapture(QString& error);
