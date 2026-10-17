@@ -74,10 +74,17 @@ CalibrationCaptureDialog::CalibrationCaptureDialog(HarmoRobot* robot, QWidget* p
         if (!m_directory.isEmpty()) QDesktopServices::openUrl(QUrl::fromLocalFile(m_directory));
     });
     connect(closeButton, &QPushButton::clicked, this, [this]() { requestClose(); });
+    if (m_robot) {
+        connect(m_robot, &AbstractRobot::errorOccurred, this, [this](const QString&) {
+            // Heartbeat failure sets isConnected=false before emitting this signal.
+            if (!m_robot->isConnected()) requireRobotConnection("robot_error");
+        });
+    }
     m_worker->moveToThread(&m_workerThread);
     connect(&m_workerThread, &QThread::finished, m_worker, &QObject::deleteLater);
     m_workerThread.start();
     updateButtons();
+    requireRobotConnection("window_open");
 }
 
 CalibrationCaptureDialog::~CalibrationCaptureDialog()
@@ -98,27 +105,55 @@ CalibrationCaptureDialog::~CalibrationCaptureDialog()
 
 void CalibrationCaptureDialog::updateButtons()
 {
-    m_start->setEnabled(!m_started && !m_busy && !m_closeRequested);
-    m_capture->setEnabled(m_started && !m_busy && !m_closeRequested);
+    const bool available = !m_connectionLost && !m_closeRequested
+        && m_robot && m_robot->isConnected();
+    m_start->setEnabled(available && !m_started && !m_busy);
+    m_capture->setEnabled(available && m_started && !m_busy);
     m_openDirectory->setEnabled(!m_directory.isEmpty());
-    m_columns->setEnabled(!m_started && !m_busy && !m_closeRequested);
-    m_rows->setEnabled(!m_started && !m_busy && !m_closeRequested);
-    m_squareSize->setEnabled(!m_started && !m_busy && !m_closeRequested);
+    m_columns->setEnabled(available && !m_started && !m_busy);
+    m_rows->setEnabled(available && !m_started && !m_busy);
+    m_squareSize->setEnabled(available && !m_started && !m_busy);
+}
+
+bool CalibrationCaptureDialog::requireRobotConnection(const char* stage)
+{
+    if (m_closeRequested) return false;
+    if (!m_connectionLost && m_robot && m_robot->isConnected()) return true;
+    // Latch the loss for this window. A reconnect must start a new observation
+    // sequence; a late camera callback must not restore a ready status.
+    if (!m_connectionLost && m_robot) {
+        m_robot->logDiagnosticEvent("CALIBRATION_CONNECTION_LOST",
+            "stage=" + QString::fromLatin1(stage) + " attempt=" + m_attemptId
+            + " robot_connected=false action=close_and_reconnect");
+    }
+    m_connectionLost = true;
+    m_busy = false;
+    updateButtons();
+    m_status->setText(QString::fromUtf8(u8"机械臂连接已断开，已禁用采集。请点击“结束并关闭”，回到主窗口重新连接机械臂，再打开标定采集。已保存的样本仍保留。"));
+    return false;
 }
 
 void CalibrationCaptureDialog::startSession()
 {
     if (m_busy || m_started || m_closeRequested) return;
-    if (!m_robot || !m_robot->isConnected()) {
-        failCapture(QString::fromUtf8(u8"机械臂未连接，请关闭本窗口并先连接机械臂。")); return;
-    }
+    if (!requireRobotConnection("start_session")) return;
     QSettings settings;
     const QString defaultRoot = QDir(QStandardPaths::writableLocation(QStandardPaths::DocumentsLocation))
         .filePath("3dCad/calibration");
     QString suggested = settings.value("calibrationCapture/outputRoot", defaultRoot).toString();
     if (!QDir(suggested).exists()) suggested = QStandardPaths::writableLocation(QStandardPaths::DocumentsLocation);
+    const std::int64_t chooseStarted = calibration_capture::monotonicNowNs();
+    m_robot->logDiagnosticEvent("CALIBRATION_DIRECTORY_BEGIN", "dialog=qt_widgets");
+    // The Windows native directory chooser does not dispatch QTimers. Keep
+    // the GUI-thread robot heartbeat running while the user chooses a folder.
     const QString parentDirectory = QFileDialog::getExistingDirectory(this,
-        QString::fromUtf8(u8"选择保存位置（将在其中新建采集批次）"), suggested);
+        QString::fromUtf8(u8"选择保存位置（将在其中新建采集批次）"), suggested,
+        QFileDialog::ShowDirsOnly | QFileDialog::DontUseNativeDialog);
+    m_robot->logDiagnosticEvent("CALIBRATION_DIRECTORY_END",
+        "elapsed_ms=" + QString::number(static_cast<qlonglong>(
+            (calibration_capture::monotonicNowNs() - chooseStarted) / 1000000))
+        + " selected=" + (parentDirectory.isEmpty() ? "false" : "true"));
+    if (!requireRobotConnection("directory_selected")) return;
     if (parentDirectory.isEmpty()) return;
     settings.setValue("calibrationCapture/outputRoot", parentDirectory);
     QJsonObject board;
@@ -127,6 +162,7 @@ void CalibrationCaptureDialog::startSession()
     const QString robotIp = m_robot->getIP();
     m_busy = true; updateButtons();
     m_status->setText(QString::fromUtf8(u8"正在启动 1920×1080 RGB8 彩色流并预热相机……"));
+    m_robot->logDiagnosticEvent("CALIBRATION_CAMERA_START", "profile=1920x1080_RGB8_30fps");
     QMetaObject::invokeMethod(m_worker, [this, parentDirectory, board, robotIp]() {
         m_camera.reset(new RealSenseCalibrationCamera);
         m_store.reset(new CalibrationDatasetStore);
@@ -139,9 +175,17 @@ void CalibrationCaptureDialog::startSession()
         if (!ok) m_camera->stop();
         QMetaObject::invokeMethod(this, [this, ok, error, directory, serial]() {
             if (m_closeRequested) return;
-            m_busy = false; m_started = ok;
+            m_robot->logDiagnosticEvent("CALIBRATION_CAMERA_FINISHED",
+                "ok=" + QString(ok ? "true" : "false") + " error=" + error);
+            m_busy = false;
+            if (ok) { m_directory = directory; m_directoryLabel->setText(directory); }
+            if (!requireRobotConnection("camera_start_finished")) {
+                m_robot->logDiagnosticEvent("CALIBRATION_START_REJECTED",
+                    "reason=robot_disconnected directory=" + directory);
+                return;
+            }
+            m_started = ok;
             if (ok) {
-                m_directory = directory; m_directoryLabel->setText(directory);
                 m_status->setText(QString::fromUtf8(u8"相机就绪（序列号：%1）。机械臂停稳后可采集。查询使用零 TCP，无需修改加工工具。" ).arg(serial));
                 m_robot->logDiagnosticEvent("CALIBRATION_SESSION", "directory=" + directory + " camera_serial=" + serial);
             } else {
@@ -168,10 +212,16 @@ QString CalibrationCaptureDialog::explainPolicyFailure(const std::string& reason
 
 bool CalibrationCaptureDialog::readObservation(std::vector<calibration_capture::RobotSample>& destination)
 {
+    if (!m_robot) {
+        failCapture(QString::fromUtf8(u8"机械臂对象不可用，请关闭本窗口并重新连接。")); return false;
+    }
     calibration_capture::RobotSample sample;
     QString error;
-    if (!m_robot || !m_robot->isConnected() || !m_robot->readCalibrationSample(sample, error)) {
-        failCapture(QString::fromUtf8(u8"零 TCP 位姿读取失败：") + error); return false;
+    // Let the adapter report and log a disconnected robot as well. An early
+    // isConnected short-circuit would leave error empty and hide that cause.
+    if (!m_robot->readCalibrationSample(sample, error)) {
+        if (error.isEmpty()) error = QString::fromUtf8(u8"SDK 未提供错误详情。");
+        failCapture(QString::fromUtf8(u8"机械臂状态/零 TCP 位姿读取失败：") + error); return false;
     }
     std::string reason;
     if (!calibration_capture::sampleIsUsable(sample, reason)) {
@@ -184,6 +234,7 @@ bool CalibrationCaptureDialog::readObservation(std::vector<calibration_capture::
 void CalibrationCaptureDialog::captureOne()
 {
     if (!m_started || m_busy || m_closeRequested) return;
+    if (!requireRobotConnection("capture_begin")) return;
     m_busy = true; m_before.clear(); m_after.clear(); m_frame = CalibrationColorFrame();
     m_attemptId = QUuid::createUuid().toString(QUuid::WithoutBraces);
     updateButtons();
@@ -193,7 +244,8 @@ void CalibrationCaptureDialog::captureOne()
         QString error;
         const bool ok = m_camera && m_camera->prepareFreshCapture(error);
         QMetaObject::invokeMethod(this, [this, ok, error]() {
-            if (m_closeRequested) return;
+            if (m_closeRequested || m_connectionLost || !m_busy) return;
+            if (!requireRobotConnection("camera_prepared")) return;
             if (!ok) { failCapture(QString::fromUtf8(u8"相机准备失败：") + error); return; }
             if (!readObservation(m_before)) return;
             QTimer::singleShot(150, this, [this]() { collectSecondBefore(); });
@@ -203,7 +255,7 @@ void CalibrationCaptureDialog::captureOne()
 
 void CalibrationCaptureDialog::collectSecondBefore()
 {
-    if (m_closeRequested || !m_busy) return;
+    if (m_closeRequested || m_connectionLost || !m_busy) return;
     if (!readObservation(m_before)) return;
     m_status->setText(QString::fromUtf8(u8"正在拍照，请保持机械臂和棋盘格静止……"));
     QMetaObject::invokeMethod(m_worker, [this]() {
@@ -216,7 +268,7 @@ void CalibrationCaptureDialog::collectSecondBefore()
 
 void CalibrationCaptureDialog::receiveFrame(bool success, const CalibrationColorFrame& frame, const QString& error)
 {
-    if (m_closeRequested || !m_busy) return;
+    if (m_closeRequested || m_connectionLost || !m_busy) return;
     if (!success) { failCapture(QString::fromUtf8(u8"拍照失败：") + error); return; }
     m_frame = frame;
     m_preview->setPixmap(QPixmap::fromImage(frame.image).scaled(m_preview->size(), Qt::KeepAspectRatio, Qt::SmoothTransformation));
@@ -227,7 +279,7 @@ void CalibrationCaptureDialog::receiveFrame(bool success, const CalibrationColor
 
 void CalibrationCaptureDialog::collectSecondAfter()
 {
-    if (m_closeRequested || !m_busy) return;
+    if (m_closeRequested || m_connectionLost || !m_busy) return;
     if (!readObservation(m_after)) return;
     const calibration_capture::Validation validation = calibration_capture::validateCapture(m_before, m_frame.timing, m_after);
     if (!validation.accepted) {
@@ -246,8 +298,9 @@ void CalibrationCaptureDialog::collectSecondAfter()
             if (!ok) { failCapture(QString::fromUtf8(u8"样本保存失败：") + error); return; }
             m_count = count; m_busy = false; updateButtons();
             m_countLabel->setText(QString::fromUtf8(u8"有效样本：%1").arg(m_count));
-            m_status->setText(QString::fromUtf8(u8"第 %1 组已保存：%2\n可示教到下一个拍摄位置，停稳后继续采集。" ).arg(m_count).arg(directory));
             m_robot->logDiagnosticEvent("CALIBRATION_CAPTURE_SAVED", "attempt=" + m_attemptId + " directory=" + directory);
+            if (!requireRobotConnection("sample_saved")) return;
+            m_status->setText(QString::fromUtf8(u8"第 %1 组已保存：%2\n可示教到下一个拍摄位置，停稳后继续采集。" ).arg(m_count).arg(directory));
         }, Qt::QueuedConnection);
     }, Qt::QueuedConnection);
 }
@@ -255,8 +308,9 @@ void CalibrationCaptureDialog::collectSecondAfter()
 void CalibrationCaptureDialog::failCapture(const QString& reason)
 {
     m_busy = false; updateButtons();
-    m_status->setText(QString::fromUtf8(u8"未保存有效样本：") + reason);
     if (m_robot) m_robot->logDiagnosticEvent("CALIBRATION_CAPTURE_REJECTED", "attempt=" + m_attemptId + " reason=" + reason);
+    if (!requireRobotConnection("capture_failure")) return;
+    m_status->setText(QString::fromUtf8(u8"未保存有效样本：") + reason);
 }
 
 void CalibrationCaptureDialog::requestClose()

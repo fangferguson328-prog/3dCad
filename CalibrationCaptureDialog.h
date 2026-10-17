@@ -34,6 +34,7 @@ private:
     void receiveFrame(bool success, const CalibrationColorFrame& frame, const QString& error);
     void collectSecondAfter();
     void failCapture(const QString& reason);
+    bool requireRobotConnection(const char* stage);
     void updateButtons();
     void requestClose();
     QString explainPolicyFailure(const std::string& reason) const;
@@ -59,6 +60,7 @@ private:
     bool m_busy = false;
     bool m_closeRequested = false;
     bool m_shutdownComplete = false;
+    bool m_connectionLost = false;
     int m_count = 0;
     std::vector<calibration_capture::RobotSample> m_before;
     std::vector<calibration_capture::RobotSample> m_after;

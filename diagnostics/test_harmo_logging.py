@@ -1,7 +1,10 @@
 #!/usr/bin/env python3
 """Exercise production HarmoRobot logging with local Qt/SDK boundary substitutes.
 
-Compiles the actual HarmoRobot.h/.cpp after removing their include directives.
+Compiles the actual HarmoRobot.h/.cpp after removing their include directives,
+plus the actual calibration dialog observation/connection methods. Button-enable
+and status-text decisions use minimal widget boundaries; actual Qt widgets,
+queued events, worker scheduling, and storage commits are not exercised.
 The substitutes use real temporary files, a deterministic clock, and an in-memory
 robot controller. This checks orchestration and log content, not Qt ABI, the
 Windows SDK binary, network behavior, or physical motion.
@@ -98,6 +101,7 @@ public:
     QString(const char* value): value_(value ? value : "") {}
     QString(const std::string& value): value_(value) {}
     static QString fromUtf8(const char* value) { return value; }
+    static QString fromLatin1(const char* value) { return value; }
     static QString fromLocal8Bit(const char* value) { return value; }
     static QString fromStdString(const std::string& value) { return value; }
     std::string toStdString() const { return value_; }
@@ -264,16 +268,25 @@ class QObject {
 public:
     explicit QObject(QObject* = nullptr) {}
     template<class Sender,class Signal,class Context,class Slot>
-    static void connect(Sender* sender,Signal signal,Context*,Slot slot) { sender->mockConnect(signal,slot); }
+    static void connect(Sender* sender,Signal signal,Context* context,Slot slot) { sender->mockConnect(signal,context,slot); }
     virtual ~QObject() = default;
 };
 class QTimer: public QObject {
+    std::function<void()> callback_;
+    bool active_ = false;
 public:
-    explicit QTimer(QObject* parent=nullptr): QObject(parent) {}
-    void start(int) {}
-    void stop() {}
+    inline static QTimer* latest = nullptr;
+    explicit QTimer(QObject* parent=nullptr): QObject(parent) { latest=this; }
+    void start(int) { active_=true; }
+    void stop() { active_=false; }
     void timeout() {}
-    template<class Signal,class Slot> void mockConnect(Signal,Slot) {}
+    template<class Signal,class Context,class Slot>
+    void mockConnect(Signal,Context* context,Slot slot) {
+        callback_=[context,slot]() { (context->*slot)(); };
+    }
+    static void fireLatest() {
+        if(latest && latest->active_ && latest->callback_)latest->callback_();
+    }
 };
 struct QVector3D {
     double a,b,c;
@@ -324,6 +337,8 @@ public:
         if(signal==&AbstractRobot::logMessage)infoSlots_.push_back(slot);
         else if(signal==&AbstractRobot::errorOccurred)errorSlots_.push_back(slot);
     }
+    template<class Signal,class Context,class Slot>
+    void mockConnect(Signal signal,Context*,Slot slot) { mockConnect(signal,slot); }
 };
 struct st_JointAngle { float fOneAxis=11,fTwoAxis=12,fThreeAxis=13,fFourAxis=14,fFiveAxis=15,fSixAxis=16; };
 struct Coordinates { float fX=501,fY=502,fZ=503,fRX=31,fRY=32,fRZ=33; };
@@ -394,6 +409,48 @@ public:
         bool resultValue=Mock::result("query_error");
         if(resultValue){motor=Mock::motor;errorCode=Mock::errorCode;}
         return resultValue;
+    }
+};
+'''
+
+
+DIALOG_BOUNDARY = r'''
+namespace calibration_capture {
+bool sampleIsUsable(const RobotSample& sample,std::string& reason) {
+    // These cases exercise connection/error forwarding, not geometry policy.
+    // Full real capture-policy tests are separate.
+    reason=sample.valid ? "" : "boundary_sample_invalid";
+    return sample.valid;
+}
+}
+struct DialogWidgetBoundary {
+    bool enabled=true;
+    QString text;
+    void setEnabled(bool value) { enabled=value; }
+    void setText(const QString& value) { text=value; }
+};
+class CalibrationCaptureDialog {
+    HarmoRobot* m_robot;
+public:
+    DialogWidgetBoundary start,capture,openDirectory,columns,rows,squareSize,status;
+    DialogWidgetBoundary* m_start=&start;
+    DialogWidgetBoundary* m_capture=&capture;
+    DialogWidgetBoundary* m_openDirectory=&openDirectory;
+    DialogWidgetBoundary* m_columns=&columns;
+    DialogWidgetBoundary* m_rows=&rows;
+    DialogWidgetBoundary* m_squareSize=&squareSize;
+    DialogWidgetBoundary* m_status=&status;
+    QString m_directory,m_attemptId;
+    bool m_started=false,m_busy=false,m_closeRequested=false,m_connectionLost=false;
+    QString failure;
+    int failureCount=0;
+    explicit CalibrationCaptureDialog(HarmoRobot* robot):m_robot(robot) {}
+    bool readObservation(std::vector<calibration_capture::RobotSample>& destination);
+    bool requireRobotConnection(const char* stage);
+    void updateButtons();
+    void failCapture(const QString& reason) { failure=reason; ++failureCount; }
+    QString explainPolicyFailure(const std::string& reason) const {
+        return QString("boundary policy failure: ")+QString::fromStdString(reason);
     }
 };
 '''
@@ -654,6 +711,97 @@ void calibrationNonfinite(const std::filesystem::path& root) {
         contains(events.back(),"values=unavailable","nonfinite calibration log lacks unavailable marker");
     }
 }
+void dialogHeartbeatDisconnect(const std::filesystem::path& root) {
+    Mock::reset();initializePaths(root);
+    HarmoRobot robot(1,"test","127.0.0.1");start(robot);
+    Mock::calls.clear();Mock::success["heartbeat"]=false;
+    QTimer::fireLatest(); // Invokes the production private onHeartbeatCheck callback.
+    require(Mock::count("heartbeat")==1,"production heartbeat callback did not execute");
+    require(!robot.isConnected(),"failed heartbeat did not disconnect production adapter");
+    Mock::calls.clear();Mock::positionTcpRequests.clear();
+    CalibrationCaptureDialog dialog(&robot);
+    std::vector<calibration_capture::RobotSample> destination;
+    require(!dialog.readObservation(destination),"dialog accepted a disconnected robot sample");
+    require(dialog.failureCount==1 && !dialog.failure.isEmpty(),"dialog failed without a visible reason");
+    contains(dialog.failure.toStdString(),"disconnected","dialog lost disconnected adapter reason");
+    require(destination.empty(),"disconnected dialog appended an invalid observation");
+    require(Mock::calls.empty() && Mock::positionTcpRequests.empty(),
+            "disconnected dialog triggered SDK queries or motion");
+    contains(readLog(robot),"reason=disconnected values=unavailable",
+             "dialog bypassed disconnected adapter diagnostics");
+}
+void dialogNullRobot(const std::filesystem::path& root) {
+    Mock::reset();initializePaths(root);
+    CalibrationCaptureDialog dialog(nullptr);
+    std::vector<calibration_capture::RobotSample> destination;
+    require(!dialog.readObservation(destination),"null robot dialog read succeeded");
+    require(dialog.failureCount==1 && !dialog.failure.isEmpty(),"null robot dialog has no error reason");
+    contains(dialog.failure.toStdString(),u8"机械臂对象不可用","null robot dialog reason is not explicit");
+    require(destination.empty() && Mock::calls.empty(),"null robot dialog appended a sample or used SDK");
+}
+void dialogSdkFailures(const std::filesystem::path& root) {
+    Mock::reset();initializePaths(root);
+    HarmoRobot robot(1,"test","127.0.0.1");start(robot);
+    for(int failure=0;failure<2;++failure) {
+        Mock::success["query_state"]=failure!=0;
+        Mock::success["query_position"]=failure!=1;
+        Mock::calls.clear();Mock::positionTcpRequests.clear();
+        CalibrationCaptureDialog dialog(&robot);
+        std::vector<calibration_capture::RobotSample> destination;
+        require(!dialog.readObservation(destination),"dialog accepted failed SDK observation");
+        require(dialog.failureCount==1 && !dialog.failure.isEmpty(),"SDK failure dialog lacks reason");
+        contains(dialog.failure.toStdString(),failure==0 ? "state query failed" : "zero-TCP position query failed",
+                 "dialog replaced the specific SDK failure reason");
+        require(destination.empty(),"SDK failure dialog appended an observation");
+        require(Mock::calls==std::vector<std::string>{"query_state","query_position"},
+                "dialog SDK failure sent unexpected commands");
+        require(Mock::positionTcpRequests.size()==1 && zeroTcpRequest(Mock::positionTcpRequests.front()),
+                "dialog SDK failure changed zero-TCP query");
+    }
+}
+void dialogSuccessfulObservation(const std::filesystem::path& root) {
+    Mock::reset();initializePaths(root);
+    HarmoRobot robot(1,"test","127.0.0.1");start(robot);
+    Mock::calls.clear();Mock::positionTcpRequests.clear();
+    CalibrationCaptureDialog dialog(&robot);
+    std::vector<calibration_capture::RobotSample> destination(1);
+    require(dialog.readObservation(destination),"dialog rejected a valid read-only observation");
+    require(destination.size()==2 && destination.back().valid,"dialog did not append exactly one valid observation");
+    require(destination.back().zeroTcpBase==calibration_capture::Pose{501,502,503,31,32,33},
+            "dialog appended incorrect zero-TCP SDK values");
+    require(dialog.failureCount==0 && dialog.failure.isEmpty(),"successful dialog read emitted failure");
+    require(Mock::calls==std::vector<std::string>{"query_state","query_position"},
+            "successful dialog read sent unexpected commands");
+    require(Mock::positionTcpRequests.size()==1 && zeroTcpRequest(Mock::positionTcpRequests.front()),
+            "successful dialog read did not use zero TCP");
+}
+void dialogDisconnectGuard(const std::filesystem::path& root) {
+    Mock::reset();initializePaths(root);
+    HarmoRobot robot(1,"test","127.0.0.1");start(robot);
+    CalibrationCaptureDialog dialog(&robot);
+    dialog.m_started=true;dialog.m_directory="existing-batch";
+    dialog.updateButtons();
+    require(dialog.capture.enabled && !dialog.start.enabled,"ready dialog button projection is wrong");
+    Mock::success["heartbeat"]=false;
+    QTimer::fireLatest();
+    require(!dialog.requireRobotConnection("robot_error"),"connection guard accepted heartbeat loss");
+    require(dialog.m_connectionLost && !dialog.m_busy,"connection guard did not latch and abort attempt");
+    require(!dialog.start.enabled && !dialog.capture.enabled && !dialog.columns.enabled &&
+            !dialog.rows.enabled && !dialog.squareSize.enabled,"disconnected dialog left capture/setup controls enabled");
+    require(dialog.openDirectory.enabled,"disconnect hid access to already saved samples");
+    contains(dialog.status.text.toStdString(),u8"机械臂连接已断开","guard did not explain connection loss");
+    const QString disconnectedStatus=dialog.status.text;
+    Mock::success["heartbeat"]=true;
+    require(robot.connectRobot(),"mock actual reconnect failed");
+    require(robot.isConnected(),"production adapter did not reconnect");
+    require(!dialog.requireRobotConnection("camera_start_finished"),
+            "late startup guard accepted stale operation after reconnect");
+    dialog.updateButtons();
+    require(!dialog.start.enabled && !dialog.capture.enabled && dialog.m_connectionLost,
+            "reconnect revived the invalidated dialog window");
+    require(dialog.status.text==disconnectedStatus,"late startup guard overwrote disconnected status");
+    contains(readLog(robot),"CALIBRATION_CONNECTION_LOST","connection loss guard was not logged");
+}
 int main(int argc,char** argv) {
     try {
         require(argc==2,"temporary output root argument required");
@@ -675,6 +823,13 @@ int main(int argc,char** argv) {
         calibrationQueryFailure(root/"calibration-both-failure",true,true);
         std::cout<<"PASS calibration SDK failures leave values unavailable\n";
         calibrationNonfinite(root/"calibration-nonfinite");std::cout<<"PASS nonfinite calibration SDK values rejected\n";
+        dialogHeartbeatDisconnect(root/"dialog-heartbeat-disconnected");
+        std::cout<<"PASS production dialog forwards heartbeat-disconnected reason without SDK query\n";
+        dialogNullRobot(root/"dialog-null-robot");std::cout<<"PASS production dialog explains missing robot object\n";
+        dialogSdkFailures(root/"dialog-sdk-failures");std::cout<<"PASS production dialog preserves SDK failure reasons\n";
+        dialogSuccessfulObservation(root/"dialog-success");std::cout<<"PASS production dialog appends one successful observation\n";
+        dialogDisconnectGuard(root/"dialog-disconnect-guard");
+        std::cout<<"PASS production connection guard disables controls and rejects late startup after reconnect\n";
     } catch(const std::exception& error) { std::cerr<<"FAIL "<<error.what()<<"\n"; return 1; }
 }
 '''
@@ -690,6 +845,28 @@ def read_source(path):
 
 def remove_includes(source):
     return re.sub(r"^\s*#\s*(?:include|pragma)\b[^\n]*", "", source, flags=re.MULTILINE)
+
+
+def dialog_read_observation(source):
+    pattern = (r"^bool CalibrationCaptureDialog::readObservation\b.*?"
+               r"(?=^void CalibrationCaptureDialog::captureOne\(\))")
+    matches = re.findall(pattern, source, flags=re.MULTILINE | re.DOTALL)
+    if len(matches) != 1 or matches[0].count("CalibrationCaptureDialog::") != 1:
+        raise RuntimeError("expected exactly one production readObservation method before captureOne")
+    return matches[0].strip()
+
+
+def dialog_connection_methods(source):
+    methods = []
+    for method, following in (("updateButtons", "requireRobotConnection"),
+                              ("requireRobotConnection", "startSession")):
+        pattern = (r"^(?:void|bool) CalibrationCaptureDialog::" + method + r"\b.*?"
+                   r"(?=^(?:void|bool) CalibrationCaptureDialog::" + following + r"\b)")
+        matches = re.findall(pattern, source, flags=re.MULTILINE | re.DOTALL)
+        if len(matches) != 1 or matches[0].count("CalibrationCaptureDialog::") != 1:
+            raise RuntimeError("expected one production dialog method: " + method)
+        methods.append(matches[0].strip())
+    return "\n".join(methods)
 
 
 def main():
@@ -709,10 +886,15 @@ def main():
         remove_includes(read_source(args.root / "HarmoRobot.h")),
         '#line 1 "HarmoRobot.cpp"',
         remove_includes(read_source(args.root / "HarmoRobot.cpp")),
+        DIALOG_BOUNDARY,
+        '#line 1 "CalibrationCaptureDialog_readObservation.cpp"',
+        dialog_read_observation(read_source(args.root / "CalibrationCaptureDialog.cpp")),
+        '#line 1 "CalibrationCaptureDialog_connection_methods.cpp"',
+        dialog_connection_methods(read_source(args.root / "CalibrationCaptureDialog.cpp")),
         '#line 1 "logging_harness.cpp"',
         CASES,
     ])
-    print("Compiling production HarmoRobot.h/.cpp with Qt/SDK boundary substitutes.", flush=True)
+    print("Compiling production HarmoRobot and selected calibration dialog methods with Qt/SDK boundary substitutes.", flush=True)
     print("No real Qt runtime, Windows SDK, network, or robot is used.", flush=True)
 
     def run(output):
