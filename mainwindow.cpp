@@ -2,6 +2,7 @@
 #include "mainwindow.h"
 #include "ui_mainwindow.h"
 #include "drawingcanvas.h"
+#include "CalibrationCaptureDialog.h"
 #include <QFileDialog>
 #include <QDebug>
 #include <QMenu>
@@ -271,6 +272,28 @@ MainWindow::MainWindow(QWidget* parent)
 	harmoRobot = new HarmoRobot(1, "Harmo_Left", "192.168.1.111", this);
 	connect(harmoRobot, &AbstractRobot::errorOccurred, this, [this](const QString& message) {
 		statusBar()->showMessage("Harmo: " + message, 15000);
+	});
+	QAction* calibrationCapture = menuBar()->addAction(QString::fromUtf8(u8"标定数据采集"));
+	connect(calibrationCapture, &QAction::triggered, this, [this]() {
+		if (m_harmoCalibrationCollecting || m_harmoRunning || m_harmoEnabling || m_harmoStopping) {
+			QMessageBox::warning(this, QString::fromUtf8(u8"无法采集标定数据"),
+				QString::fromUtf8(u8"请等待加工和停止确认结束后再采集标定数据。"));
+			return;
+		}
+		if (m_cameraNameAndRobotName != "REALSENSE_HARMO" || !harmoRobot->isConnected()) {
+			QMessageBox::warning(this, QString::fromUtf8(u8"无法采集标定数据"),
+				QString::fromUtf8(u8"请先选择 RealSense / Harmo 并连接机械臂。"));
+			return;
+		}
+		m_harmoCalibrationCollecting = true;
+		const bool resumePolling = testTimer->isActive();
+		testTimer->stop();
+		{
+			CalibrationCaptureDialog dialog(harmoRobot, this);
+			dialog.exec();
+		}
+		m_harmoCalibrationCollecting = false;
+		if (resumePolling && harmoRobot->isConnected()) testTimer->start(200);
 	});
 	QAction* openHarmoLogs = menuBar()->addAction(QString::fromUtf8(u8"Harmo日志"));
 	connect(openHarmoLogs, &QAction::triggered, this, [this]() {
@@ -1252,7 +1275,7 @@ void MainWindow::trackFit()
 
 void MainWindow::harmoRobotJiagong()
 {
-    if (m_harmoRunning) return;
+    if (m_harmoRunning || m_harmoCalibrationCollecting) return;
     if (!m_harmoCaptureValid || m_harmoBaseFromCameraAtCapture.empty()) {
         QMessageBox::warning(this, QString::fromUtf8(u8"无法开始加工"),
             QString::fromUtf8(u8"当前轨迹没有与静止机械臂位姿绑定的实时采集。请选择标定矩阵目标坐标系后重新采集并绘制轨迹。"));
@@ -2527,7 +2550,7 @@ void MainWindow::on_reset_pushButton_clicked()//复位
 
 void MainWindow::on_catch3D_PushButton_clicked()//三维采集
 {
-	if (m_harmoRunning) return;
+	if (m_harmoRunning || m_harmoCalibrationCollecting) return;
 
 	if (m_cameraNameAndRobotName == "REALSENSE_HARMO")
 		catch3DFromRealsenseAndHarmo();

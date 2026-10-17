@@ -3,8 +3,8 @@
   "target": "windows-x64-release",
   "include": [
     "*.cpp", "*.h", "*.hpp", "*.ui", "*.pro", "*.sln", "*.vcxproj", "*.vcxproj.filters", "*.qrc",
-    "0414_config.json", "harmo_processing_design.md", "shaders/*",
-    "diagnostics/*.py", "diagnostics/*.cpp", "diagnostics/*.md",
+    "0414_config.json", "README.md", "harmo_processing_design.md", "shaders/*",
+    "diagnostics/*.py", "diagnostics/*.cpp", "diagnostics/*.md", "diagnostics/*.pro",
     "deployment/*.json", "deployment/*.py", "deployment/*.ps1",
     "pcd/test_cube.obj", "pcd/test_plane.obj", "pcd/test_cylinder_mesh.obj",
     "includes/glm/glm.pri", "includes/glm/glm/**/*",
@@ -29,6 +29,10 @@
   "exclude": ["ui_*.h", "moc_*.cpp", "moc_*.h", "qrc_*.cpp", "**/.DS_Store", "**/*.pdb", "**/*.exp", "**/*.obj", "**/__pycache__/**"],
   "required": [
     "3dCad.pro", "mainwindow.cpp", "HarmoMotionPlan.cpp", "HarmoMotionPlan.h", "HarmoRobot.cpp",
+    "CalibrationCapturePolicy.cpp", "CalibrationCapturePolicy.h",
+    "RealSenseCalibrationCamera.cpp", "RealSenseCalibrationCamera.h",
+    "CalibrationDatasetStore.cpp", "CalibrationDatasetStore.h",
+    "CalibrationCaptureDialog.cpp", "CalibrationCaptureDialog.h",
     "XPLGenerator.cpp", "tinyxml2.cpp", "tinyxml2.h", "nanoflann.hpp", "resources.qrc",
     "includes/glm/glm/detail/glm.cpp", "includes/glfw/lib-vc2015/glfw3dll.lib",
     "includes/Intel RealSense SDK 2.0/lib/x64/realsense2.lib", "includes/Intel RealSense SDK 2.0/bin/x64/realsense2.dll",

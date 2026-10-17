@@ -378,6 +378,10 @@
     <ClCompile Include="EfortRobot.cpp" />
     <ClCompile Include="HarmoRobot.cpp" />
     <ClCompile Include="HarmoMotionPlan.cpp" />
+    <ClCompile Include="CalibrationCapturePolicy.cpp" />
+    <ClCompile Include="RealSenseCalibrationCamera.cpp" />
+    <ClCompile Include="CalibrationDatasetStore.cpp" />
+    <ClCompile Include="CalibrationCaptureDialog.cpp" />
     <ClCompile Include="includes\glm\glm\detail\glm.cpp" />
     <ClCompile Include="iocontrol.cpp" />
     <ClCompile Include="main.cpp" />
@@ -396,6 +400,10 @@
     <QtMoc Include="HarmoRobot.h" />
     <QtMoc Include="drawingcanvas.h" />
     <ClInclude Include="planeselection.h" />
+    <ClInclude Include="CalibrationCapturePolicy.h" />
+    <ClInclude Include="RealSenseCalibrationCamera.h" />
+    <ClInclude Include="CalibrationDatasetStore.h" />
+    <ClInclude Include="CalibrationCaptureDialog.h" />
     <ClInclude Include="EfortRobot.h" />
     <ClInclude Include="includes\robot\32\TcpClientCommon.h" />
     <ClInclude Include="includes\robot\32\TcpClientControlOperate.h" />

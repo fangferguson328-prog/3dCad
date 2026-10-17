@@ -1,6 +1,7 @@
 #pragma once
 
 #include "RobotController.h"
+#include "CalibrationCapturePolicy.h"
 #include "TcpClientControlOperate.h"
 #include "TcpClientStateOperate.h"
 #include <qtimer.h>
@@ -82,6 +83,7 @@ public:
     bool resetError();//清错函数
 
     bool getRobotState(st_RobotState& state);
+    bool readCalibrationSample(calibration_capture::RobotSample& sample, QString& error);
     const int getMotionState();//获取运动状态
 
     // Per-instance diagnostics; no global Qt message handler or motion policy changes.

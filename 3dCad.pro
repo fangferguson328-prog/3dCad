@@ -25,6 +25,10 @@ SOURCES += \
     main.cpp \
     mainwindow.cpp \
     HarmoMotionPlan.cpp \
+    CalibrationCapturePolicy.cpp \
+    RealSenseCalibrationCamera.cpp \
+    CalibrationDatasetStore.cpp \
+    CalibrationCaptureDialog.cpp \
     XPLGenerator.cpp \
     tinyxml2.cpp \
     myweldtrack.cpp \
@@ -42,6 +46,10 @@ HEADERS += \
     iocontrol.h \
     mainwindow.h \
     HarmoMotionPlan.h \
+    CalibrationCapturePolicy.h \
+    RealSenseCalibrationCamera.h \
+    CalibrationDatasetStore.h \
+    CalibrationCaptureDialog.h \
     XPLGenerator.h \
     tinyxml2.h \
     myweldtrack.h \

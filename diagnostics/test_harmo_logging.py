@@ -18,6 +18,7 @@ import time
 
 SHIM = r'''
 #include <algorithm>
+#include <array>
 #include <cmath>
 #include <cstdint>
 #include <filesystem>
@@ -25,6 +26,7 @@ SHIM = r'''
 #include <functional>
 #include <iomanip>
 #include <iostream>
+#include <limits>
 #include <map>
 #include <sstream>
 #include <stdexcept>
@@ -39,8 +41,10 @@ namespace Mock {
     qint64 now = 1000;
     std::string appDir, fallbackDir;
     std::vector<std::string> calls, warnings;
+    std::vector<std::array<float,6>> positionTcpRequests;
     std::map<std::string, bool> success;
     bool writeFails = false, flushFails = false;
+    qint64 stateDelayMs = 0, positionDelayMs = 0;
     bool result(const std::string& name) {
         calls.push_back(name);
         auto it = success.find(name);
@@ -324,6 +328,8 @@ public:
 struct st_JointAngle { float fOneAxis=11,fTwoAxis=12,fThreeAxis=13,fFourAxis=14,fFiveAxis=15,fSixAxis=16; };
 struct Coordinates { float fX=501,fY=502,fZ=503,fRX=31,fRY=32,fRZ=33; };
 using st_SpaceCoordinate = Coordinates;
+using st_FlangeCoordinate = Coordinates;
+using st_ToolCoordinate = Coordinates;
 struct st_RobotPosition {
     st_JointAngle sJointAngle;
     Coordinates sFlangeCoordinate,sSpaceCoordinate,sToolCoordinate;
@@ -335,12 +341,14 @@ struct st_RobotState {
 };
 namespace Mock {
     st_RobotState state;
+    st_RobotPosition position;
     int motor=5,errorCode=731;
     bool alarmOnMove=false;
     void reset() {
-        now=1000; calls.clear(); warnings.clear(); success.clear();
+        now=1000; calls.clear(); warnings.clear(); success.clear(); positionTcpRequests.clear();
         writeFails=false;flushFails=false;
-        state=st_RobotState{};motor=5;errorCode=731;alarmOnMove=false;
+        state=st_RobotState{};position=st_RobotPosition{};
+        motor=5;errorCode=731;alarmOnMove=false;stateDelayMs=0;positionDelayMs=0;
     }
     bool move(const std::string& name) {
         bool resultValue=result(name);
@@ -371,12 +379,15 @@ public:
     bool sendLogoutCommandPack(){return Mock::result("state_logout");}
     bool sendRobotStateGetPack(st_RobotState& output){
         bool resultValue=Mock::result("query_state");
+        Mock::now+=Mock::stateDelayMs;
         if(resultValue)output=Mock::state;
         return resultValue;
     }
-    bool sendRobotPositionGetPack(float,float,float,float,float,float,st_RobotPosition& output){
+    bool sendRobotPositionGetPack(float x,float y,float z,float rx,float ry,float rz,st_RobotPosition& output){
+        Mock::positionTcpRequests.push_back({x,y,z,rx,ry,rz});
         bool resultValue=Mock::result("query_position");
-        if(resultValue)output=st_RobotPosition{};
+        Mock::now+=Mock::positionDelayMs;
+        if(resultValue)output=Mock::position;
         return resultValue;
     }
     bool getErrorCodefoCommandPack(int& motor,int& errorCode){
@@ -535,6 +546,114 @@ void escapedFields(const std::filesystem::path& root) {
     contains(allLines.back(),"\\nforged-entry\\\"\\\\","context escaping mismatch");
     contains(allLines.back(),"line1\\nline2\\rline3","details newline escaping mismatch");
 }
+bool zeroTcpRequest(const std::array<float,6>& request) {
+    return request==std::array<float,6>{0,0,0,0,0,0};
+}
+void calibrationDisconnected(const std::filesystem::path& root) {
+    Mock::reset();initializePaths(root);
+    HarmoRobot robot(1,"test","127.0.0.1");
+    robot.setInternalTCP(1,2,3,4,5,6);
+    Mock::calls.clear();Mock::positionTcpRequests.clear();
+    calibration_capture::RobotSample sample;QString error;
+    require(!robot.readCalibrationSample(sample,error),"disconnected calibration query succeeded");
+    require(!sample.valid && !error.isEmpty(),"disconnected calibration query lacks invalid sample/error");
+    require(Mock::calls.empty() && Mock::positionTcpRequests.empty(),
+            "disconnected calibration query sent an SDK command");
+    contains(readLog(robot),"reason=disconnected values=unavailable",
+             "disconnected calibration query did not log unavailable values");
+}
+void calibrationSample(const std::filesystem::path& root) {
+    Mock::reset();initializePaths(root);
+    HarmoRobot robot(1,"test","127.0.0.1");start(robot);
+    robot.setInternalTCP(1,2,3,4,5,6);
+    Mock::state.iEnableState=1;Mock::state.iRobotState=2;
+    Mock::state.iIoBoardState=3;Mock::state.iRunMode=4;
+    Mock::state.iEmergencyState=5;Mock::state.iOfflineRunMode=6;
+    Mock::state.iMotionState=7;Mock::state.iMotionThreadState=8;
+    Mock::position.sJointAngle={11,12,13,14,15,16};
+    Mock::position.sSpaceCoordinate={101,102,103,104,105,106};
+    Mock::position.sFlangeCoordinate={201,202,203,204,205,206};
+    Mock::position.sToolCoordinate={301,302,303,304,305,306};
+    Mock::stateDelayMs=3;Mock::positionDelayMs=7;
+    Mock::calls.clear();Mock::positionTcpRequests.clear();
+    calibration_capture::RobotSample sample;QString error="stale error";
+    require(robot.readCalibrationSample(sample,error),"valid calibration query failed");
+    require(sample.valid && error.isEmpty(),"valid calibration query did not clear error/set valid");
+    require(Mock::calls==std::vector<std::string>{"query_state","query_position"},
+            "calibration query sent unexpected SDK commands or wrong order");
+    require(Mock::positionTcpRequests.size()==1 && zeroTcpRequest(Mock::positionTcpRequests.front()),
+            "calibration position query did not send six zero TCP values");
+    require(sample.zeroTcpBase==calibration_capture::Pose{101,102,103,104,105,106},
+            "zero-TCP base pose copied from wrong SDK field");
+    require(sample.jointsDeg==calibration_capture::Pose{11,12,13,14,15,16},
+            "calibration joint angles copied from wrong SDK field");
+    require(sample.reportedFlange==calibration_capture::Pose{201,202,203,204,205,206},
+            "flange pose copied from wrong SDK field");
+    require(sample.reportedTool==calibration_capture::Pose{301,302,303,304,305,306},
+            "tool pose copied from wrong SDK field");
+    require(sample.enableState==1 && sample.robotState==2 && sample.ioBoardState==3 &&
+            sample.runMode==4 && sample.emergencyState==5 && sample.offlineState==6 &&
+            sample.motionState==7 && sample.motionThreadState==8,
+            "calibration state flags copied from wrong SDK field or prematurely rejected");
+    require(sample.requestUtcMs==1000 && sample.responseUtcMs==1010 &&
+            sample.requestMonotonicNs==1000000000LL && sample.responseMonotonicNs==1010000000LL,
+            "calibration time bracket does not cover state and position queries");
+    contains(readLog(robot),"zero_tcp_base_XYZ_RPY_mm_deg=[101,102,103,104,105,106]",
+             "calibration log lacks valid zero-TCP position");
+    RobotPose cachedPose;
+    require(robot.getCurrentTCPPose(cachedPose),"cached TCP follow-up query failed");
+    require(Mock::positionTcpRequests.size()==2 &&
+            Mock::positionTcpRequests.back()==std::array<float,6>{1,2,3,4,5,6},
+            "calibration query changed the cached machining TCP");
+}
+void calibrationQueryFailure(const std::filesystem::path& root,bool stateFails,bool positionFails) {
+    Mock::reset();initializePaths(root);
+    HarmoRobot robot(1,"test","127.0.0.1");start(robot);
+    robot.setInternalTCP(1,2,3,4,5,6);
+    Mock::success["query_state"]=!stateFails;
+    Mock::success["query_position"]=!positionFails;
+    Mock::calls.clear();Mock::positionTcpRequests.clear();
+    calibration_capture::RobotSample sample;sample.valid=true;sample.zeroTcpBase.fill(999);
+    QString error;
+    require(!robot.readCalibrationSample(sample,error),"failed SDK calibration query succeeded");
+    require(!sample.valid && !error.isEmpty(),"failed SDK calibration query lacks invalid sample/error");
+    require(sample.zeroTcpBase==calibration_capture::Pose{0,0,0,0,0,0} &&
+            sample.robotState==-1,"failed SDK query published partial or fabricated valid values");
+    require(sample.requestUtcMs==1000 && sample.responseUtcMs==1000,
+            "failed SDK query did not preserve its request bracket");
+    require(Mock::calls==std::vector<std::string>{"query_state","query_position"} &&
+            Mock::positionTcpRequests.size()==1 && zeroTcpRequest(Mock::positionTcpRequests.front()),
+            "failed SDK query sent extra commands or nonzero TCP");
+    const auto events=lines(readLog(robot)," CALIBRATION_SAMPLE ");
+    require(!events.empty(),"failed calibration query not logged");
+    contains(events.back(),"values=unavailable","failed calibration query logged fabricated numeric values");
+    require(events.back().find("zero_tcp_base_XYZ_RPY_mm_deg=[0")==std::string::npos,
+            "failed calibration query logged a fake zero pose");
+}
+void calibrationNonfinite(const std::filesystem::path& root) {
+    Mock::reset();initializePaths(root);
+    HarmoRobot robot(1,"test","127.0.0.1");start(robot);
+    const float bad=std::numeric_limits<float>::quiet_NaN();
+    const float infinity=std::numeric_limits<float>::infinity();
+    for(int field=0;field<4;++field) {
+        Mock::position=st_RobotPosition{};
+        if(field==0)Mock::position.sSpaceCoordinate.fZ=bad;
+        if(field==1)Mock::position.sJointAngle.fSixAxis=bad;
+        if(field==2)Mock::position.sFlangeCoordinate.fRX=bad;
+        if(field==3)Mock::position.sToolCoordinate.fRZ=infinity;
+        Mock::calls.clear();Mock::positionTcpRequests.clear();
+        calibration_capture::RobotSample sample;QString error;
+        require(!robot.readCalibrationSample(sample,error),"nonfinite SDK value was accepted");
+        require(!sample.valid && !error.isEmpty(),"nonfinite SDK value lacks invalid sample/error");
+        require(sample.zeroTcpBase==calibration_capture::Pose{0,0,0,0,0,0},
+                "nonfinite SDK value leaked a partial pose");
+        require(Mock::calls==std::vector<std::string>{"query_state","query_position"} &&
+                Mock::positionTcpRequests.size()==1 && zeroTcpRequest(Mock::positionTcpRequests.front()),
+                "nonfinite SDK value triggered extra command or nonzero TCP");
+        const auto events=lines(readLog(robot)," CALIBRATION_SAMPLE ");
+        contains(events.back(),"values=unavailable","nonfinite calibration log lacks unavailable marker");
+    }
+}
 int main(int argc,char** argv) {
     try {
         require(argc==2,"temporary output root argument required");
@@ -549,6 +668,13 @@ int main(int argc,char** argv) {
         diskFailure(root/"write-failure",false);std::cout<<"PASS runtime write failure exposed without changing motion\n";
         diskFailure(root/"flush-failure",true);std::cout<<"PASS runtime flush failure exposed without changing motion\n";
         escapedFields(root/"escaped-fields");std::cout<<"PASS context/details preserve one record per line\n";
+        calibrationDisconnected(root/"calibration-disconnected");std::cout<<"PASS disconnected calibration read sends no SDK command\n";
+        calibrationSample(root/"calibration-valid");std::cout<<"PASS zero-TCP calibration fields, timing, and cached TCP\n";
+        calibrationQueryFailure(root/"calibration-state-failure",true,false);
+        calibrationQueryFailure(root/"calibration-position-failure",false,true);
+        calibrationQueryFailure(root/"calibration-both-failure",true,true);
+        std::cout<<"PASS calibration SDK failures leave values unavailable\n";
+        calibrationNonfinite(root/"calibration-nonfinite");std::cout<<"PASS nonfinite calibration SDK values rejected\n";
     } catch(const std::exception& error) { std::cerr<<"FAIL "<<error.what()<<"\n"; return 1; }
 }
 '''
@@ -577,6 +703,8 @@ def main():
         parser.error("C++ compiler not found: " + args.compiler)
     source = "\n".join([
         SHIM,
+        '#include "CalibrationCapturePolicy.h"',
+        'namespace calibration_capture { std::int64_t monotonicNowNs() { return Mock::now * 1000000; } }',
         '#line 1 "HarmoRobot.h"',
         remove_includes(read_source(args.root / "HarmoRobot.h")),
         '#line 1 "HarmoRobot.cpp"',
@@ -592,7 +720,8 @@ def main():
         cpp = output / "harmo_logging_harness.cpp"
         executable = output / "harmo_logging_harness"
         cpp.write_text(source, encoding="utf-8")
-        subprocess.run([compiler, "-std=c++17", "-Wall", "-Wextra", str(cpp), "-o", str(executable)], check=True)
+        subprocess.run([compiler, "-std=c++17", "-Wall", "-Wextra", "-I", str(args.root),
+                        str(cpp), "-o", str(executable)], check=True)
         subprocess.run([str(executable), str(output / ("cases-" + str(time.time_ns())))], check=True)
 
     if args.keep_output:

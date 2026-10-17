@@ -123,6 +123,7 @@ private:
     int m_harmoStopStablePolls = 0;
     quint64 m_harmoRunGeneration = 0;
     bool m_harmoRunning = false;
+    bool m_harmoCalibrationCollecting = false;
     bool m_harmoEnabling = false;
     bool m_harmoStopping = false;
     bool m_harmoObservedMotion = false;

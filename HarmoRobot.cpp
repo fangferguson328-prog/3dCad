@@ -6,6 +6,7 @@
 #include <QElapsedTimer>
 #include <QStandardPaths>
 #include <QStringList>
+#include <cmath>
 
 namespace {
 QString diagnosticQuoted(QString value)
@@ -624,6 +625,99 @@ QString HarmoRobot::getIP() const
 bool HarmoRobot::isConnected() const
 {
     return m_isConnected;
+}
+
+bool HarmoRobot::readCalibrationSample(calibration_capture::RobotSample& sample, QString& error)
+{
+    sample = calibration_capture::RobotSample{};
+    error.clear();
+    if (!m_isConnected) {
+        error = "Calibration sample failed: robot is disconnected";
+        logDiagnosticEvent("CALIBRATION_SAMPLE", "query_ok=false reason=disconnected values=unavailable");
+        return false;
+    }
+
+    calibration_capture::RobotSample pending;
+    pending.requestUtcMs = QDateTime::currentMSecsSinceEpoch();
+    pending.requestMonotonicNs = calibration_capture::monotonicNowNs();
+    st_RobotState state = {};
+    const bool stateOk = m_stateApi.sendRobotStateGetPack(state);
+    st_RobotPosition position = {};
+    const bool positionOk = m_stateApi.sendRobotPositionGetPack(
+        0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, position);
+    pending.responseMonotonicNs = calibration_capture::monotonicNowNs();
+    pending.responseUtcMs = QDateTime::currentMSecsSinceEpoch();
+
+    // Preserve request timing on failure, but never publish incomplete SDK values.
+    sample.requestUtcMs = pending.requestUtcMs;
+    sample.responseUtcMs = pending.responseUtcMs;
+    sample.requestMonotonicNs = pending.requestMonotonicNs;
+    sample.responseMonotonicNs = pending.responseMonotonicNs;
+    if (!stateOk || !positionOk) {
+        error = !stateOk && !positionOk ?
+            "Calibration sample failed: state and zero-TCP position queries failed" :
+            (!stateOk ? "Calibration sample failed: state query failed" :
+                        "Calibration sample failed: zero-TCP position query failed");
+        logDiagnosticEvent("CALIBRATION_SAMPLE", "query_ok=false state_query_ok="
+            + QString(stateOk ? "true" : "false") + " position_query_ok="
+            + QString(positionOk ? "true" : "false") + " tcp_request_XYZ_RPY_mm_deg=[0,0,0,0,0,0]"
+            + " values=unavailable reason=" + diagnosticQuoted(error));
+        return false;
+    }
+
+    const st_SpaceCoordinate& zeroTcp = position.sSpaceCoordinate;
+    const st_JointAngle& joints = position.sJointAngle;
+    const st_FlangeCoordinate& flange = position.sFlangeCoordinate;
+    const st_ToolCoordinate& tool = position.sToolCoordinate;
+    pending.zeroTcpBase = {{zeroTcp.fX, zeroTcp.fY, zeroTcp.fZ,
+                            zeroTcp.fRX, zeroTcp.fRY, zeroTcp.fRZ}};
+    pending.jointsDeg = {{joints.fOneAxis, joints.fTwoAxis, joints.fThreeAxis,
+                          joints.fFourAxis, joints.fFiveAxis, joints.fSixAxis}};
+    pending.reportedFlange = {{flange.fX, flange.fY, flange.fZ,
+                               flange.fRX, flange.fRY, flange.fRZ}};
+    pending.reportedTool = {{tool.fX, tool.fY, tool.fZ,
+                             tool.fRX, tool.fRY, tool.fRZ}};
+    pending.robotState = state.iRobotState;
+    pending.emergencyState = state.iEmergencyState;
+    pending.ioBoardState = state.iIoBoardState;
+    pending.motionState = state.iMotionState;
+    pending.motionThreadState = state.iMotionThreadState;
+    pending.runMode = state.iRunMode;
+    pending.offlineState = state.iOfflineRunMode;
+    pending.enableState = state.iEnableState;
+
+    const auto finitePose = [](const calibration_capture::Pose& pose) {
+        for (double value : pose) if (!std::isfinite(value)) return false;
+        return true;
+    };
+    const char* invalidField = nullptr;
+    if (!finitePose(pending.zeroTcpBase)) invalidField = "sSpaceCoordinate";
+    else if (!finitePose(pending.jointsDeg)) invalidField = "sJointAngle";
+    else if (!finitePose(pending.reportedFlange)) invalidField = "sFlangeCoordinate";
+    else if (!finitePose(pending.reportedTool)) invalidField = "sToolCoordinate";
+    if (invalidField) {
+        error = QString("Calibration sample failed: non-finite value in %1").arg(invalidField);
+        logDiagnosticEvent("CALIBRATION_SAMPLE", "query_ok=false state_query_ok=true"
+            " position_query_ok=true tcp_request_XYZ_RPY_mm_deg=[0,0,0,0,0,0]"
+            " values=unavailable reason=" + diagnosticQuoted(error));
+        return false;
+    }
+
+    pending.valid = true;
+    sample = pending;
+    logDiagnosticEvent("CALIBRATION_SAMPLE", QString("query_ok=true tcp_request_XYZ_RPY_mm_deg=[0,0,0,0,0,0]")
+        + " request_utc_ms=" + QString::number(sample.requestUtcMs)
+        + " response_utc_ms=" + QString::number(sample.responseUtcMs)
+        + " zero_tcp_base_XYZ_RPY_mm_deg="
+        + diagnosticPose(zeroTcp.fX, zeroTcp.fY, zeroTcp.fZ, zeroTcp.fRX, zeroTcp.fRY, zeroTcp.fRZ)
+        + " joints_deg=" + diagnosticPose(joints.fOneAxis, joints.fTwoAxis, joints.fThreeAxis,
+                                            joints.fFourAxis, joints.fFiveAxis, joints.fSixAxis)
+        + " flange_XYZ_RPY_mm_deg="
+        + diagnosticPose(flange.fX, flange.fY, flange.fZ, flange.fRX, flange.fRY, flange.fRZ)
+        + " tool_XYZ_RPY_mm_deg="
+        + diagnosticPose(tool.fX, tool.fY, tool.fZ, tool.fRX, tool.fRY, tool.fRZ)
+        + " " + diagnosticState(state));
+    return true;
 }
 
 bool HarmoRobot::getCurrentTCPPose(RobotPose& pose)
