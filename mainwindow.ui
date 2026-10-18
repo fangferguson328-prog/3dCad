@@ -744,8 +744,11 @@ p, li { white-space: pre-wrap; }
              <verstretch>0</verstretch>
             </sizepolicy>
            </property>
+           <property name="toolTip">
+            <string>读取实际六轴关节角并设为工作起点；只读取数据，不驱动机械臂。可重复点击覆盖，保存配置后下次启动可沿用。</string>
+           </property>
            <property name="text">
-            <string>示教</string>
+            <string>读取当前关节角</string>
            </property>
           </widget>
          </item>

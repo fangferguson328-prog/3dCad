@@ -2,8 +2,8 @@
 """Exercise production HarmoRobot logging with local Qt/SDK boundary substitutes.
 
 Compiles the actual HarmoRobot.h/.cpp after removing their include directives,
-plus the actual calibration dialog observation/connection/preview methods.
-Button, preview and queued-callback decisions use minimal widget and queue
+plus the actual calibration dialog and work-start read/confirm methods.
+Button, preview, work-start, and queued-callback decisions use minimal widget and queue
 boundaries; actual Qt widgets, worker scheduling, and storage commits are not exercised.
 The substitutes use real temporary files, a deterministic clock, and an in-memory
 robot controller. This checks orchestration and log content, not Qt ABI, the
@@ -153,6 +153,18 @@ public:
         std::string output=value_;
         std::transform(output.begin(),output.end(),output.begin(),[](unsigned char c){return std::toupper(c);});
         return output;
+    }
+    double toDouble(bool* ok=nullptr) const {
+        try {
+            std::size_t end=0;
+            const double value=std::stod(value_,&end);
+            if(end!=value_.size())throw std::invalid_argument("trailing text");
+            if(ok)*ok=true;
+            return value;
+        } catch(const std::exception&) {
+            if(ok)*ok=false;
+            return 0;
+        }
     }
     QString& operator+=(const QString& other) { value_+=other.value_; return *this; }
     friend QString operator+(const QString& a,const QString& b) { return a.value_+b.value_; }
@@ -531,6 +543,68 @@ public:
     QString explainPolicyFailure(const std::string& reason) const {
         return QString("boundary policy failure: ")+QString::fromStdString(reason);
     }
+};
+'''
+
+
+MAIN_WINDOW_BOUNDARY = r'''
+struct QLineEdit {
+    QString value;
+    bool enabled=true;
+    QString text() const { return value; }
+    void setText(const QString& next) { value=next; }
+    void setEnabled(bool next) { enabled=next; }
+};
+struct WorkStartUiBoundary {
+    QLineEdit edits[6],confirm,read;
+    QLineEdit *mjStartEdit_1=&edits[0], *mjStartEdit_2=&edits[1],
+        *mjStartEdit_3=&edits[2], *mjStartEdit_4=&edits[3],
+        *mjStartEdit_5=&edits[4], *mjStartEdit_6=&edits[5];
+    QLineEdit *workStartJointOK_pushButton=&confirm,
+        *workStartJointShijiao_pushButton_2=&read;
+};
+struct WorkStartStatusBoundary {
+    QString message;
+    int timeout=0;
+    void showMessage(const QString& text,int duration) { message=text;timeout=duration; }
+};
+struct QMessageBox {
+    static void warning(void*,const QString&,const QString& detail) {
+        Mock::warnings.push_back(detail.toStdString());
+    }
+};
+#define INIT_FLOAT_MAX_VALUE 1e10
+struct RobotJoint {
+    double j[12];
+    RobotJoint() { for(double& axis:j)axis=INIT_FLOAT_MAX_VALUE; }
+};
+constexpr int ERROR_OK=0;
+namespace Mock {
+    bool efortConnected=true;
+    int efortReadResult=ERROR_OK;
+    RobotJoint efortJoints;
+}
+bool IsConnected(int) { return Mock::efortConnected; }
+int GetJointPos(RobotJoint& output,int) {
+    Mock::calls.push_back("efort_get_joint");
+    if(Mock::efortReadResult==ERROR_OK)output=Mock::efortJoints;
+    return Mock::efortReadResult;
+}
+class MainWindow {
+public:
+    WorkStartUiBoundary ownedUi;
+    WorkStartUiBoundary* ui=&ownedUi;
+    WorkStartStatusBoundary status;
+    HarmoRobot* harmoRobot=nullptr;
+    std::string m_cameraNameAndRobotName="REALSENSE_HARMO";
+    int m_deviceId=1;
+    bool m_harmoRunning=false,m_harmoEnabling=false,m_harmoStopping=false,
+        m_harmoTeachingOrientation=false,m_harmoCalibrationCollecting=false;
+    double hanjieJointStart[6]={};
+    explicit MainWindow(HarmoRobot* robot):harmoRobot(robot) {}
+    WorkStartStatusBoundary* statusBar() { return &status; }
+    void on_workStartJointShijiao_pushButton_2_clicked();
+    void on_workStartJointOK_pushButton_clicked();
 };
 '''
 
@@ -1011,6 +1085,161 @@ void dialogPreviewErrorAndRecovery(const std::filesystem::path& root) {
             dialog.preview.pixmapId==0 && !dialog.m_previewError.isEmpty(),
             "failed worker enqueue retained pending state or old picture");
 }
+std::array<QString,6> workStartFields(const MainWindow& window) {
+    std::array<QString,6> values;
+    for(int i=0;i<6;++i)values[i]=window.ownedUi.edits[i].text();
+    return values;
+}
+std::array<double,6> workStartAngles(const MainWindow& window) {
+    std::array<double,6> values;
+    for(int i=0;i<6;++i)values[i]=window.hanjieJointStart[i];
+    return values;
+}
+void initializeWorkStart(MainWindow& window) {
+    for(int i=0;i<6;++i) {
+        window.ownedUi.edits[i].setText(QString::number(10+i,'f',4));
+        window.hanjieJointStart[i]=10+i;
+    }
+}
+void unchangedWorkStart(const MainWindow& window,
+                        const std::array<QString,6>& fields,
+                        const std::array<double,6>& angles,
+                        const std::string& caseName) {
+    require(workStartFields(window)==fields && workStartAngles(window)==angles,
+            caseName+" partially replaced six work-start values");
+}
+void onlyPositionRead(const std::string& caseName) {
+    require(Mock::calls.size()==1 && Mock::calls[0]=="query_position",
+            caseName+" sent another SDK command or failed to read one position");
+}
+void workStartReadAndRepeat(const std::filesystem::path& root) {
+    Mock::reset();initializePaths(root);
+    HarmoRobot robot(1,"test","127.0.0.1");start(robot);
+    MainWindow window(&robot);initializeWorkStart(window);
+    window.on_workStartJointOK_pushButton_clicked();
+    require(!window.ownedUi.confirm.enabled && window.ownedUi.read.enabled,
+            "preconfirmed work start should retain the read button");
+    Mock::position.sJointAngle={12.125f,-34.25f,56.375f,-78.5f,91.625f,-23.875f};
+    Mock::calls.clear();
+    window.on_workStartJointShijiao_pushButton_2_clicked();
+    onlyPositionRead("successful Harmo read");
+    const std::array<double,6> first={12.125,-34.25,56.375,-78.5,91.625,-23.875};
+    for(int i=0;i<6;++i) {
+        require(std::abs(window.hanjieJointStart[i]-first[i])<0.0001 &&
+                window.ownedUi.edits[i].text()==QString::number(first[i],'f',4),
+                "Harmo read failed to replace all six values, including joint 6");
+        require(!window.ownedUi.edits[i].enabled,"confirmed Harmo read left a joint editable");
+    }
+    require(!window.ownedUi.confirm.enabled && window.ownedUi.read.enabled &&
+            !window.status.message.isEmpty(),"read did not confirm and report the work start");
+    contains(readLog(robot),"WORK_START_READ query_ok=true","successful read lacks diagnostic event");
+    Mock::position.sJointAngle={-1.5f,2.25f,-3.125f,4.5f,-5.75f,37.625f};
+    Mock::calls.clear();
+    window.on_workStartJointShijiao_pushButton_2_clicked();
+    onlyPositionRead("repeat Harmo read after confirmation");
+    require(window.ownedUi.edits[5].text()=="37.6250" &&
+            window.hanjieJointStart[5]==37.625,
+            "repeat read kept stale or zero sixth joint after confirmation");
+}
+void workStartReadFailures(const std::filesystem::path& root) {
+    Mock::reset();initializePaths(root);
+    HarmoRobot robot(1,"test","127.0.0.1");start(robot);
+    MainWindow window(&robot);initializeWorkStart(window);
+    const auto fields=workStartFields(window);
+    const auto angles=workStartAngles(window);
+    Mock::success["query_position"]=false;
+    Mock::calls.clear();
+    window.on_workStartJointShijiao_pushButton_2_clicked();
+    onlyPositionRead("failed SDK read");
+    unchangedWorkStart(window,fields,angles,"failed SDK read");
+    Mock::success["query_position"]=true;
+    Mock::position.sJointAngle.fSixAxis=std::numeric_limits<float>::quiet_NaN();
+    Mock::calls.clear();
+    window.on_workStartJointShijiao_pushButton_2_clicked();
+    onlyPositionRead("nonfinite SDK read");
+    unchangedWorkStart(window,fields,angles,"nonfinite SDK read");
+    Mock::position.sJointAngle=st_JointAngle{};
+    Mock::position.sJointAngle.fThreeAxis=165;
+    Mock::calls.clear();
+    window.on_workStartJointShijiao_pushButton_2_clicked();
+    onlyPositionRead("out-of-range SDK read");
+    unchangedWorkStart(window,fields,angles,"out-of-range SDK read");
+    require(Mock::warnings.size()>=3,"invalid work-start reads did not explain failure");
+}
+void workStartDisconnectedAndBusy(const std::filesystem::path& root) {
+    Mock::reset();initializePaths(root);
+    HarmoRobot disconnected(1,"test","127.0.0.1");
+    MainWindow window(&disconnected);initializeWorkStart(window);
+    const auto fields=workStartFields(window);
+    const auto angles=workStartAngles(window);
+    Mock::calls.clear();
+    window.on_workStartJointShijiao_pushButton_2_clicked();
+    require(Mock::calls.empty(),"disconnected work-start read queried the SDK");
+    unchangedWorkStart(window,fields,angles,"disconnected read");
+    window.harmoRobot=nullptr;
+    window.on_workStartJointShijiao_pushButton_2_clicked();
+    require(Mock::calls.empty(),"missing robot object queried the SDK");
+    unchangedWorkStart(window,fields,angles,"missing robot read");
+
+    HarmoRobot connected(1,"test","127.0.0.1");start(connected);
+    window.harmoRobot=&connected;
+    bool* guards[]={&window.m_harmoRunning,&window.m_harmoEnabling,
+                    &window.m_harmoStopping,&window.m_harmoTeachingOrientation,
+                    &window.m_harmoCalibrationCollecting};
+    for(int i=0;i<5;++i) {
+        *guards[i]=true;
+        Mock::calls.clear();
+        window.on_workStartJointShijiao_pushButton_2_clicked();
+        require(Mock::calls.empty(),"busy state queried the robot or sent a command");
+        unchangedWorkStart(window,fields,angles,"busy read");
+        *guards[i]=false;
+    }
+}
+void workStartEfortSixthAxis(const std::filesystem::path& root) {
+    Mock::reset();initializePaths(root);
+    MainWindow window(nullptr);initializeWorkStart(window);
+    window.m_cameraNameAndRobotName="EFORT";
+    Mock::efortConnected=true;Mock::efortReadResult=ERROR_OK;
+    for(int i=0;i<6;++i)Mock::efortJoints.j[i]=20+i;
+    Mock::efortJoints.j[5]=68.125;
+    Mock::calls.clear();
+    window.on_workStartJointShijiao_pushButton_2_clicked();
+    require(Mock::calls.size()==1 && Mock::calls[0]=="efort_get_joint" &&
+            window.hanjieJointStart[5]==68.125 &&
+            window.ownedUi.edits[5].text()=="68.1250",
+            "Efort read lost the SDK's sixth joint");
+    const auto fields=workStartFields(window);
+    const auto angles=workStartAngles(window);
+    Mock::efortReadResult=1;
+    Mock::calls.clear();
+    window.on_workStartJointShijiao_pushButton_2_clicked();
+    require(Mock::calls.size()==1 && Mock::calls[0]=="efort_get_joint",
+            "Efort failure did not use its read-only query");
+    unchangedWorkStart(window,fields,angles,"failed Efort read");
+    Mock::efortReadResult=ERROR_OK;
+    for(int i=0;i<5;++i)Mock::efortJoints.j[i]=40+i;
+    Mock::efortJoints.j[5]=INIT_FLOAT_MAX_VALUE;
+    Mock::calls.clear();
+    window.on_workStartJointShijiao_pushButton_2_clicked();
+    require(Mock::calls.size()==1 && Mock::calls[0]=="efort_get_joint",
+            "Efort success with an unset joint did not use one read-only query");
+    unchangedWorkStart(window,fields,angles,"unset Efort sixth joint");
+}
+void workStartManualLateInvalid(const std::filesystem::path& root) {
+    Mock::reset();initializePaths(root);
+    MainWindow window(nullptr);initializeWorkStart(window);
+    const auto original=workStartAngles(window);
+    for(int i=0;i<5;++i)
+        window.ownedUi.edits[i].setText(QString::number(40+i,'f',4));
+    window.ownedUi.edits[5].setText("176");
+    Mock::calls.clear();
+    window.on_workStartJointOK_pushButton_clicked();
+    require(workStartAngles(window)==original,
+            "manual confirmation committed earlier joints before rejecting joint 6");
+    require(Mock::calls.empty() && window.ownedUi.confirm.enabled &&
+            !Mock::warnings.empty(),
+            "manual invalid confirmation queried SDK, locked fields, or omitted warning");
+}
 int main(int argc,char** argv) {
     try {
         require(argc==2,"temporary output root argument required");
@@ -1047,6 +1276,16 @@ int main(int argc,char** argv) {
         std::cout<<"PASS production preview stops and cannot revive after robot connection loss\n";
         dialogPreviewErrorAndRecovery(root/"preview-error-recovery");
         std::cout<<"PASS production preview handles poll error, no frame, recovery, and enqueue failure\n";
+        workStartReadAndRepeat(root/"work-start-success");
+        std::cout<<"PASS production work-start read confirms all six Harmo joints and supports repeat read\n";
+        workStartReadFailures(root/"work-start-failures");
+        std::cout<<"PASS failed, nonfinite, and out-of-range work-start reads preserve all values\n";
+        workStartDisconnectedAndBusy(root/"work-start-guards");
+        std::cout<<"PASS disconnected and five busy work-start guards send no SDK query\n";
+        workStartEfortSixthAxis(root/"work-start-efort");
+        std::cout<<"PASS Efort work-start read uses actual sixth joint and rejects failure or unset SDK sentinel\n";
+        workStartManualLateInvalid(root/"work-start-manual-late-invalid");
+        std::cout<<"PASS manual confirmation rejects invalid sixth joint without partial angle commit\n";
     } catch(const std::exception& error) { std::cerr<<"FAIL "<<error.what()<<"\n"; return 1; }
 }
 '''
@@ -1107,6 +1346,15 @@ def require_capture_invalidates_preview(source):
         raise RuntimeError("captureOne must invalidate older preview callbacks before becoming busy")
 
 
+def work_start_read_methods(source):
+    pattern = (r"^void MainWindow::on_workStartJointShijiao_pushButton_2_clicked\(\).*?"
+               r"(?=^void MainWindow::on_workStartJointChange_pushButton_clicked\(\))")
+    matches = re.findall(pattern, source, flags=re.MULTILINE | re.DOTALL)
+    if len(matches) != 1 or matches[0].count("MainWindow::") != 2:
+        raise RuntimeError("expected consecutive production work-start read and confirm slots")
+    return matches[0].strip()
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--root", type=Path, default=Path(__file__).resolve().parents[1])
@@ -1117,6 +1365,7 @@ def main():
     if not compiler:
         parser.error("C++ compiler not found: " + args.compiler)
     dialog_source = read_source(args.root / "CalibrationCaptureDialog.cpp")
+    main_window_source = read_source(args.root / "mainwindow.cpp")
     require_capture_invalidates_preview(dialog_source)
     source = "\n".join([
         SHIM,
@@ -1133,6 +1382,9 @@ def main():
         dialog_preview_methods(dialog_source),
         '#line 1 "CalibrationCaptureDialog_connection_methods.cpp"',
         dialog_connection_methods(dialog_source),
+        MAIN_WINDOW_BOUNDARY,
+        '#line 1 "mainwindow_work_start.cpp"',
+        work_start_read_methods(main_window_source),
         '#line 1 "logging_harness.cpp"',
         CASES,
     ])

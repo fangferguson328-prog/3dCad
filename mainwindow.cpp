@@ -1544,6 +1544,7 @@ void MainWindow::harmoRobotJiagong()
     m_harmoOrientationMode->setEnabled(false);
     m_harmoTeachOrientationBtn->setEnabled(false);
     m_harmoClearanceDirection->setEnabled(false);
+    ui->workStartJointShijiao_pushButton_2->setEnabled(false);
     harmoRobot->beginDiagnosticRun(static_cast<int>(drawn.size()));
     harmoRobot->logDiagnosticEvent("CLEARANCE_DIRECTION",
         QString("tool_z_sign=%1 distance_mm=%2").arg(input.clearanceToolZSign).arg(input.clearanceMm));
@@ -1884,6 +1885,7 @@ void MainWindow::completeHarmoMotion(const QString& outcome, const QString& deta
     m_harmoOrientationMode->setEnabled(true);
     m_harmoTeachOrientationBtn->setEnabled(true);
     m_harmoClearanceDirection->setEnabled(true);
+    ui->workStartJointShijiao_pushButton_2->setEnabled(true);
     if (outcome == "completed") {
         statusBar()->showMessage(QString::fromUtf8(u8"Harmo 加工完成；各步骤已核对状态与目标位姿。"), 15000);
     } else if (closeAfterStop) {
@@ -4334,49 +4336,76 @@ void MainWindow::on_paizhaoStartJointChange_pushButton_2_clicked()
 
 void MainWindow::on_workStartJointShijiao_pushButton_2_clicked()
 {
-	if (m_cameraNameAndRobotName == "REALSENSE_HARMO") {
-		if (harmoRobot->isConnected()) {
-			RobotJoints workStartJointShijiao;
-			harmoRobot->setDiagnosticContext("manual/teach_work_start");
-			if (!harmoRobot->getCurrentJoints(workStartJointShijiao) ||
-				workStartJointShijiao.axis.size() != 6) {
-				QMessageBox::warning(this, QString::fromUtf8(u8"示教失败"),
-					QString::fromUtf8(u8"无法读取六个关节的当前位置。"));
-				return;
-			}
-			ui->mjStartEdit_1->setText(QString::number(workStartJointShijiao.axis[0], 'f', 2));
-			ui->mjStartEdit_2->setText(QString::number(workStartJointShijiao.axis[1], 'f', 2));
-			ui->mjStartEdit_3->setText(QString::number(workStartJointShijiao.axis[2], 'f', 2));
-			ui->mjStartEdit_4->setText(QString::number(workStartJointShijiao.axis[3], 'f', 2));
-			ui->mjStartEdit_5->setText(QString::number(workStartJointShijiao.axis[4], 'f', 2));
-			ui->mjStartEdit_6->setText(QString::number(workStartJointShijiao.axis[5], 'f', 2));
-		}
-		else {
-			QMessageBox::warning(nullptr, QString::fromLocal8Bit("机器人未连接"), QString::fromLocal8Bit("检查机器人连接"));
-		}
-	}
-	else {
-		if (IsConnected(m_deviceId)) {
-			RobotJoint workStartJointShijiao;
-			GetJointPos(workStartJointShijiao, m_deviceId);
-			ui->mjStartEdit_1->setText(QString::number(workStartJointShijiao.j[0], 'f', 2));
-			ui->mjStartEdit_2->setText(QString::number(workStartJointShijiao.j[1], 'f', 2));
-			ui->mjStartEdit_3->setText(QString::number(workStartJointShijiao.j[2], 'f', 2));
-			ui->mjStartEdit_4->setText(QString::number(workStartJointShijiao.j[3], 'f', 2));
-			ui->mjStartEdit_5->setText(QString::number(workStartJointShijiao.j[4], 'f', 2));
-			ui->mjStartEdit_6->setText(QString::number(0, 'f', 2));
-		}
-		else {
-			QMessageBox::warning(nullptr, QString::fromLocal8Bit("机器人未连接"), QString::fromLocal8Bit("检查机器人连接"));
-		}
-	}
+    if (m_harmoRunning || m_harmoEnabling || m_harmoStopping ||
+        m_harmoTeachingOrientation || m_harmoCalibrationCollecting) return;
+
+    const bool isHarmo = m_cameraNameAndRobotName == "REALSENSE_HARMO";
+    double current[6] = {};
+    if (isHarmo) {
+        if (!harmoRobot || !harmoRobot->isConnected()) {
+            QMessageBox::warning(this, QString::fromUtf8(u8"读取失败"),
+                QString::fromUtf8(u8"机械臂未连接，请先连接机械臂。"));
+            return;
+        }
+        harmoRobot->setDiagnosticContext("manual/read_work_start");
+        RobotJoints observed;
+        if (!harmoRobot->getCurrentJoints(observed) || observed.axis.size() != 6) {
+            harmoRobot->logDiagnosticEvent("WORK_START_READ", "query_ok=false reason=sdk_read_failed values=unavailable");
+            QMessageBox::warning(this, QString::fromUtf8(u8"读取失败"),
+                QString::fromUtf8(u8"无法读取完整六轴关节角，原工作起点保持不变。"));
+            return;
+        }
+        for (int i = 0; i < 6; ++i) current[i] = observed.axis[i];
+    } else {
+        if (!IsConnected(m_deviceId)) {
+            QMessageBox::warning(this, QString::fromUtf8(u8"读取失败"),
+                QString::fromUtf8(u8"机械臂未连接，请先连接机械臂。"));
+            return;
+        }
+        RobotJoint observed = {};
+        if (GetJointPos(observed, m_deviceId) != ERROR_OK) {
+            QMessageBox::warning(this, QString::fromUtf8(u8"读取失败"),
+                QString::fromUtf8(u8"无法读取完整六轴关节角，原工作起点保持不变。"));
+            return;
+        }
+        for (int i = 0; i < 6; ++i) current[i] = observed.j[i];
+    }
+    // Validate all six values before replacing any displayed or applied value.
+    const double harmoLimits[6] = {175, 175, 164, 175, 175, 175};
+    for (int i = 0; i < 6; ++i) {
+        if (!std::isfinite(current[i]) ||
+            (!isHarmo && current[i] == INIT_FLOAT_MAX_VALUE) ||
+            (isHarmo && std::abs(current[i]) > harmoLimits[i])) {
+            if (isHarmo) harmoRobot->logDiagnosticEvent("WORK_START_READ",
+                QString("query_ok=false reason=invalid_joint axis=%1 values=unavailable").arg(i + 1));
+            QMessageBox::warning(this, QString::fromUtf8(u8"读取失败"),
+                QString::fromUtf8(u8"第 %1 轴返回值无效或超出 SDK 范围，原工作起点保持不变。").arg(i + 1));
+            return;
+        }
+    }
+    QLineEdit* jointEdits[6] = {ui->mjStartEdit_1, ui->mjStartEdit_2,
+        ui->mjStartEdit_3, ui->mjStartEdit_4, ui->mjStartEdit_5, ui->mjStartEdit_6};
+    for (int i = 0; i < 6; ++i) jointEdits[i]->setText(QString::number(current[i], 'f', 4));
+    on_workStartJointOK_pushButton_clicked();
+    if (isHarmo) {
+        QString details = "query_ok=true joints_deg=[";
+        for (int i = 0; i < 6; ++i) {
+            if (i) details += ",";
+            details += jointEdits[i]->text();
+        }
+        harmoRobot->logDiagnosticEvent("WORK_START_READ", details + "] action=apply_work_start");
+    }
+    statusBar()->showMessage(QString::fromUtf8(u8"已读取六轴关节角并设为工作起点。需要下次启动沿用时，请点击“保存配置”。"), 15000);
 }
 
 void MainWindow::on_workStartJointOK_pushButton_clicked()
 {
+    if (m_harmoRunning || m_harmoEnabling || m_harmoStopping ||
+        m_harmoTeachingOrientation || m_harmoCalibrationCollecting) return;
 	QLineEdit* jointEdits[6] = {ui->mjStartEdit_1, ui->mjStartEdit_2,
 		ui->mjStartEdit_3, ui->mjStartEdit_4, ui->mjStartEdit_5, ui->mjStartEdit_6};
 	const double harmoLimits[6] = {175, 175, 164, 175, 175, 175};
+	double confirmed[6] = {};
 	for (int i = 0; i < 6; ++i) {
 		bool parsed = false;
 		const double angle = jointEdits[i]->text().toDouble(&parsed);
@@ -4388,8 +4417,9 @@ void MainWindow::on_workStartJointOK_pushButton_clicked()
 					.arg(i + 1));
 			return;
 		}
-		hanjieJointStart[i] = angle;
+		confirmed[i] = angle;
 	}
+	for (int i = 0; i < 6; ++i) hanjieJointStart[i] = confirmed[i];
 	ui->mjStartEdit_1->setEnabled(false);
 	ui->mjStartEdit_2->setEnabled(false);
 	ui->mjStartEdit_3->setEnabled(false);
@@ -4397,11 +4427,13 @@ void MainWindow::on_workStartJointOK_pushButton_clicked()
 	ui->mjStartEdit_5->setEnabled(false);
 	ui->mjStartEdit_6->setEnabled(false);
 	ui->workStartJointOK_pushButton->setEnabled(false);
-	ui->workStartJointShijiao_pushButton_2->setEnabled(false);
+	ui->workStartJointShijiao_pushButton_2->setEnabled(true);
 }
 
 void MainWindow::on_workStartJointChange_pushButton_clicked()
 {
+    if (m_harmoRunning || m_harmoEnabling || m_harmoStopping ||
+        m_harmoTeachingOrientation || m_harmoCalibrationCollecting) return;
 	ui->mjStartEdit_1->setEnabled(true);
 	ui->mjStartEdit_2->setEnabled(true);
 	ui->mjStartEdit_3->setEnabled(true);
