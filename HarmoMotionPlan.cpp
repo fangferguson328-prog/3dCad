@@ -169,7 +169,20 @@ PoseMmDeg makePose(const BaseWaypoint& waypoint) {
 }
 
 bool convertWaypoint(const Mat4& transform, const CameraWaypoint& camera,
-                     BaseWaypoint& base, std::string& error) {
+                     BaseWaypoint& base, std::string& error,
+                     const BaseWaypoint* taughtFrame = nullptr) {
+    if (taughtFrame) {
+        // Only positions come from the camera in taught mode. Drawn tool axes
+        // are deliberately ignored; the taught frame is already in BASE.
+        base = *taughtFrame;
+        base.positionMm = positionToBaseMm(transform, camera.positionM);
+        base.pose = makePose(base);
+        if (!finite(camera.positionM) || !fitsSdkFloat(base.pose)) {
+            error = "transformed position is non-finite or exceeds SDK float range";
+            return false;
+        }
+        return true;
+    }
     if (!finite(camera.positionM) || !finite(camera.zAxisCamera) ||
         !finite(camera.xAxisCamera)) {
         error = "position or tool direction contains a non-finite value";
@@ -240,10 +253,10 @@ Step poseStep(StepKind kind, const BaseWaypoint& waypoint,
 }
 
 Step clearanceStep(StepKind kind, const BaseWaypoint& waypoint,
-                   double clearanceMm, std::size_t trackIndex) {
+                   double clearanceMm, int toolZSign, std::size_t trackIndex) {
     Step step = poseStep(kind, waypoint, trackIndex, false);
-    const Vec3 safe = subtract(waypoint.positionMm,
-                               multiply(waypoint.zAxis, clearanceMm));
+    const Vec3 safe = add(waypoint.positionMm,
+                         multiply(waypoint.zAxis, toolZSign * clearanceMm));
     step.target.x = safe.x;
     step.target.y = safe.y;
     step.target.z = safe.z;
@@ -264,6 +277,31 @@ CompileResult compile(const PlanInput& input) {
     CompileResult result;
     if (!validateRigidTransform(input.baseFromCameraMm, result.error))
         return result;
+    if (input.clearanceToolZSign != -1 && input.clearanceToolZSign != 1) {
+        result.error = "clearance tool Z sign must be +1 or -1";
+        return result;
+    }
+    BaseWaypoint taughtFrame;
+    if (input.useTaughtOrientation) {
+        for (double angle : input.taughtBaseRpyDeg) {
+            if (!fitsSdkFloat(angle)) {
+                result.error = "taught base orientation is non-finite or exceeds SDK float range";
+                return result;
+            }
+        }
+        const double rx = std::remainder(input.taughtBaseRpyDeg[0], 360.0) * kPi / 180.0;
+        const double ry = std::remainder(input.taughtBaseRpyDeg[1], 360.0) * kPi / 180.0;
+        const double rz = std::remainder(input.taughtBaseRpyDeg[2], 360.0) * kPi / 180.0;
+        const double sx = std::sin(rx), cx = std::cos(rx);
+        const double sy = std::sin(ry), cy = std::cos(ry);
+        const double sz = std::sin(rz), cz = std::cos(rz);
+        // Columns of Rz * Ry * Rx are the taught tool axes in BASE.
+        taughtFrame.xAxis = Vec3(cz * cy, sz * cy, -sy);
+        taughtFrame.yAxis = Vec3(cz * sy * sx - sz * cx,
+                                sz * sy * sx + cz * cx, cy * sx);
+        taughtFrame.zAxis = Vec3(cz * sy * cx + sz * sx,
+                                sz * sy * cx - cz * sx, cy * cx);
+    }
     if (!finite(input.clearanceMm) || input.clearanceMm <= 0.0) {
         result.error = "clearanceMm must be finite and positive";
         return result;
@@ -319,7 +357,8 @@ CompileResult compile(const PlanInput& input) {
             BaseWaypoint waypoint;
             std::string why;
             if (!convertWaypoint(input.baseFromCameraMm, source.waypoints[p],
-                                 waypoint, why)) {
+                                 waypoint, why,
+                                 input.useTaughtOrientation ? &taughtFrame : nullptr)) {
                 result.error = atWaypoint(t, p, why);
                 return result;
             }
@@ -369,10 +408,10 @@ CompileResult compile(const PlanInput& input) {
     for (std::size_t t = 0; t < tracks.size(); ++t) {
         const BaseWaypoint& first = tracks[t].waypoints.front();
         const BaseWaypoint& last = tracks[t].waypoints.back();
-        if (!fitsSdkFloat(subtract(first.positionMm,
-                                   multiply(first.zAxis, input.clearanceMm))) ||
-            !fitsSdkFloat(subtract(last.positionMm,
-                                   multiply(last.zAxis, input.clearanceMm)))) {
+        if (!fitsSdkFloat(add(first.positionMm,
+                             multiply(first.zAxis, input.clearanceToolZSign * input.clearanceMm))) ||
+            !fitsSdkFloat(add(last.positionMm,
+                             multiply(last.zAxis, input.clearanceToolZSign * input.clearanceMm)))) {
             result.error = atTrack(t, "clearance target is non-finite or exceeds SDK float range");
             return result;
         }
@@ -389,7 +428,7 @@ CompileResult compile(const PlanInput& input) {
         const BaseWaypoint& first = track.waypoints.front();
         const BaseWaypoint& last = track.waypoints.back();
         if (!track.continuousWithPrevious) {
-            plannedSteps.push_back(clearanceStep(MoveP, first, input.clearanceMm, t));
+            plannedSteps.push_back(clearanceStep(MoveP, first, input.clearanceMm, input.clearanceToolZSign, t));
             plannedSteps.push_back(poseStep(MoveL, first, t, false));
         }
 
@@ -422,7 +461,7 @@ CompileResult compile(const PlanInput& input) {
         const bool nextIsContinuous = t + 1 < tracks.size() &&
                                       tracks[t + 1].continuousWithPrevious;
         if (!nextIsContinuous)
-            plannedSteps.push_back(clearanceStep(MoveL, last, input.clearanceMm, t));
+            plannedSteps.push_back(clearanceStep(MoveL, last, input.clearanceMm, input.clearanceToolZSign, t));
     }
 
     // Unwrap the final command sequence, including clearance moves and each

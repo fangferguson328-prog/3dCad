@@ -118,6 +118,13 @@ bool harmoCapturePoseStable(const RobotPose& first, const RobotPose& second)
         second.rx, second.ry, second.rz) <= 0.5;
 }
 
+bool harmoSameTcpDefinition(const RobotPose& a, const RobotPose& b)
+{
+    return harmoPoseFinite(a) && harmoPoseFinite(b) &&
+        a.x == b.x && a.y == b.y && a.z == b.z &&
+        a.rx == b.rx && a.ry == b.ry && a.rz == b.rz;
+}
+
 bool harmoRigidMatrix(const cv::Mat& matrix)
 {
     if (matrix.rows != 4 || matrix.cols != 4 || matrix.type() != CV_64F ||
@@ -275,7 +282,7 @@ MainWindow::MainWindow(QWidget* parent)
 	});
 	QAction* calibrationCapture = menuBar()->addAction(QString::fromUtf8(u8"标定数据采集"));
 	connect(calibrationCapture, &QAction::triggered, this, [this]() {
-		if (m_harmoCalibrationCollecting || m_harmoRunning || m_harmoEnabling || m_harmoStopping) {
+		if (m_harmoTeachingOrientation || m_harmoCalibrationCollecting || m_harmoRunning || m_harmoEnabling || m_harmoStopping) {
 			QMessageBox::warning(this, QString::fromUtf8(u8"无法采集标定数据"),
 				QString::fromUtf8(u8"请等待加工和停止确认结束后再采集标定数据。"));
 			return;
@@ -312,7 +319,7 @@ MainWindow::MainWindow(QWidget* parent)
 		? QString::fromUtf8(u8"Harmo日志：") + harmoRobot->diagnosticLogPath()
 		: QString::fromUtf8(u8"Harmo日志保存失败：") + harmoRobot->diagnosticLogError());
 	// 设置这个机器人的TCP（非常重要，因为Harmo每次运动都要发TCP）
-	TCP0 = RobotPose(QVector3D(-10.77, 50.56, 375.9), QVector3D(-19.35,-6.14, 178.56));
+	TCP0 = RobotPose(QVector3D(3.72,59.07,383.78), QVector3D(-175.77,-16.64,130.11));
 	harmoRobot->setInternalTCP(TCP0); // 设置tcp
 
 	m_harmoCalibrationFrame = new QComboBox(this);
@@ -339,6 +346,28 @@ MainWindow::MainWindow(QWidget* parent)
 	m_harmoMotionTimer = new QTimer(this);
 	m_harmoMotionTimer->setInterval(100);
 	connect(m_harmoMotionTimer, &QTimer::timeout, this, &MainWindow::pollHarmoMotion);
+
+    m_harmoOrientationMode = new QComboBox(this);
+    m_harmoOrientationMode->setObjectName("harmoOrientationMode");
+    m_harmoOrientationMode->addItem(QString::fromUtf8(u8"Harmo：采用轨迹姿态"));
+    m_harmoOrientationMode->addItem(QString::fromUtf8(u8"Harmo：采用示教加工姿态"));
+    m_harmoOrientationMode->setToolTip(QString::fromUtf8(u8"示教模式：位置沿轨迹移动，工具在基坐标系中的朝向保持不变。"));
+    m_harmoTeachOrientationBtn = new QPushButton(QString::fromUtf8(u8"记录当前 TCP 加工姿态"), this);
+    m_harmoTeachOrientationBtn->setObjectName("harmoTeachOrientationButton");
+    m_harmoTaughtOrientationLabel = new QLabel(QString::fromUtf8(u8"示教姿态：未记录（仅本次会话有效）"), this);
+    m_harmoTaughtOrientationLabel->setObjectName("harmoTaughtOrientationLabel");
+    m_harmoTaughtOrientationLabel->setWordWrap(true);
+    ui->verticalLayout_10->addWidget(m_harmoOrientationMode);
+    m_harmoClearanceDirection = new QComboBox(this);
+    m_harmoClearanceDirection->setObjectName("harmoClearanceDirection");
+    m_harmoClearanceDirection->addItem(QString::fromUtf8(u8"远离工件：工具正 Z（+Z）"), 1);
+    m_harmoClearanceDirection->addItem(QString::fromUtf8(u8"远离工件：工具负 Z（−Z，原方向）"), -1);
+    m_harmoClearanceDirection->setToolTip(QString::fromUtf8(u8"接近点和退刀点均沿选定方向偏移 100 mm；入刀沿相反方向。请按实际工具轴向选择。"));
+    ui->verticalLayout_10->addWidget(m_harmoClearanceDirection);
+    ui->verticalLayout_10->addWidget(m_harmoTeachOrientationBtn);
+    ui->verticalLayout_10->addWidget(m_harmoTaughtOrientationLabel);
+    connect(m_harmoTeachOrientationBtn, &QPushButton::clicked,
+        this, &MainWindow::recordHarmoMachiningOrientation);
 	statusBar()->showMessage(QString::fromUtf8(u8"采集前请核对并确认相机→TCP0 标定矩阵。"));
 
 	m_cameraNameAndRobotName = "REALSENSE_HARMO";
@@ -1006,6 +1035,7 @@ void MainWindow::catch3DFromKwscCameraAndEfortRobot()
 }
 void MainWindow::catch3DFromRealsenseAndHarmo()
 {
+    if (m_harmoTeachingOrientation) return;
     m_harmoCaptureId = QDateTime::currentDateTimeUtc().toString("yyyyMMddTHHmmsszzzZ");
     m_harmoCaptureValid = false;
     m_harmoBaseFromCameraAtCapture.release();
@@ -1273,9 +1303,75 @@ void MainWindow::trackFit()
 	openGLWidget->setTrackFitFlag(true, shapes);
 }
 
+void MainWindow::recordHarmoMachiningOrientation()
+{
+    if (m_harmoTeachingOrientation || m_harmoRunning || m_harmoEnabling ||
+        m_harmoStopping || m_harmoCalibrationCollecting) return;
+    if (m_cameraNameAndRobotName != "REALSENSE_HARMO" || !harmoRobot->isConnected()) {
+        QMessageBox::warning(this, QString::fromUtf8(u8"无法记录加工姿态"),
+            QString::fromUtf8(u8"请先选择 RealSense / Harmo 并连接机械臂。"));
+        return;
+    }
+    // Two read-only observations bracket a short stability interval. No power
+    // or motion command is sent when recording a taught orientation.
+    const auto readIdle = [this](RobotPose& pose, RobotJoints& joints) {
+        st_RobotState state = {};
+        harmoRobot->setInternalTCP(TCP0);
+        return harmoRobot->isConnected() && harmoRobot->getRobotState(state) &&
+            state.iRobotState == 0 && state.iEmergencyState == 0 && state.iIoBoardState == 0 &&
+            (state.iMotionState == 0 || state.iMotionState == 2) &&
+            (state.iMotionThreadState == 0 || state.iMotionThreadState == 2) &&
+            harmoRobot->getCurrentTCPPose(pose) && harmoPoseFinite(pose) &&
+            harmoRobot->getCurrentJoints(joints) && joints.axis.size() == 6 &&
+            std::isfinite(harmoJointsDifferenceDeg(joints, joints));
+    };
+    m_harmoTaughtOrientationValid = false;
+    m_harmoTaughtOrientationLabel->setText(QString::fromUtf8(u8"示教姿态：未记录"));
+    RobotPose before;
+    RobotJoints beforeJoints;
+    if (!readIdle(before, beforeJoints)) {
+        QMessageBox::warning(this, QString::fromUtf8(u8"无法记录加工姿态"),
+            QString::fromUtf8(u8"请确认机器人已静止、无报警，且 TCP 位姿和关节角可正常读取。"));
+        return;
+    }
+    m_harmoTeachingOrientation = true;
+    m_harmoTeachOrientationBtn->setEnabled(false);
+    m_harmoOrientationMode->setEnabled(false);
+    m_harmoTaughtOrientationLabel->setText(QString::fromUtf8(u8"正在检查静止状态，请保持机器人静止…"));
+    const RobotPose taughtTcp = TCP0;
+    QTimer::singleShot(250, this, [this, readIdle, before, beforeJoints, taughtTcp]() {
+        RobotPose after;
+        RobotJoints afterJoints;
+        const bool valid = readIdle(after, afterJoints) &&
+            m_cameraNameAndRobotName == "REALSENSE_HARMO" &&
+            harmoSameTcpDefinition(taughtTcp, TCP0) &&
+            harmoPositionDifferenceMm(before, after) <= 0.10 &&
+            harmoOrientationDifferenceDeg(before.rx, before.ry, before.rz,
+                after.rx, after.ry, after.rz) <= 0.05 &&
+            harmoJointsDifferenceDeg(beforeJoints, afterJoints) <= 0.05;
+        m_harmoTeachingOrientation = false;
+        m_harmoTeachOrientationBtn->setEnabled(true);
+        m_harmoOrientationMode->setEnabled(true);
+        if (!valid) {
+            m_harmoTaughtOrientationLabel->setText(QString::fromUtf8(u8"示教姿态：记录失败，请静止后重新记录"));
+            harmoRobot->logDiagnosticEvent("TAUGHT_ORIENTATION_REJECTED", "not_idle_or_unstable_or_query_failed");
+            return;
+        }
+        m_harmoTaughtOrientation = after;
+        m_harmoTaughtTcp = taughtTcp;
+        m_harmoTaughtOrientationValid = true;
+        m_harmoOrientationMode->setCurrentIndex(1);
+        m_harmoTaughtOrientationLabel->setText(QString::fromUtf8(u8"示教姿态（基座，°）：Rx=%1，Ry=%2，Rz=%3\n仅本次会话有效")
+            .arg(after.rx, 0, 'f', 3).arg(after.ry, 0, 'f', 3).arg(after.rz, 0, 'f', 3));
+        harmoRobot->logDiagnosticEvent("TAUGHT_ORIENTATION_RECORDED",
+            QString("base_RPY_deg=[%1,%2,%3]").arg(after.rx, 0, 'g', 12)
+                .arg(after.ry, 0, 'g', 12).arg(after.rz, 0, 'g', 12));
+    });
+}
+
 void MainWindow::harmoRobotJiagong()
 {
-    if (m_harmoRunning || m_harmoCalibrationCollecting) return;
+    if (m_harmoRunning || m_harmoCalibrationCollecting || m_harmoTeachingOrientation) return;
     if (!m_harmoCaptureValid || m_harmoBaseFromCameraAtCapture.empty()) {
         QMessageBox::warning(this, QString::fromUtf8(u8"无法开始加工"),
             QString::fromUtf8(u8"当前轨迹没有与静止机械臂位姿绑定的实时采集。请选择标定矩阵目标坐标系后重新采集并绘制轨迹。"));
@@ -1298,6 +1394,18 @@ void MainWindow::harmoRobotJiagong()
 
     harmo_motion::PlanInput input;
     input.clearanceMm = 100.0;
+    input.clearanceToolZSign = m_harmoClearanceDirection->currentData().toInt();
+    input.useTaughtOrientation = m_harmoOrientationMode->currentIndex() == 1;
+    if (input.useTaughtOrientation) {
+        if (!m_harmoTaughtOrientationValid || !harmoPoseFinite(m_harmoTaughtOrientation) ||
+            !harmoSameTcpDefinition(m_harmoTaughtTcp, TCP0)) {
+            QMessageBox::warning(this, QString::fromUtf8(u8"无法开始加工"),
+                QString::fromUtf8(u8"请先将工具调整到加工朝向，保持静止后点击“记录当前 TCP 加工姿态”。TCP 配置改变后需要重新记录。"));
+            return;
+        }
+        input.taughtBaseRpyDeg = {{m_harmoTaughtOrientation.rx,
+            m_harmoTaughtOrientation.ry, m_harmoTaughtOrientation.rz}};
+    }
     for (int r = 0; r < 4; ++r)
         for (int c = 0; c < 4; ++c)
             input.baseFromCameraMm.m[r * 4 + c] = m_harmoBaseFromCameraAtCapture.at<double>(r, c);
@@ -1387,8 +1495,17 @@ void MainWindow::harmoRobotJiagong()
         .arg(firstEntry->target.z, 0, 'f', 2)
         .arg(lastMachining->target.x, 0, 'f', 2).arg(lastMachining->target.y, 0, 'f', 2)
         .arg(lastMachining->target.z, 0, 'f', 2);
-    const QString fullReview = review + QString::fromUtf8(u8"\n工作起点关节（度）：") +
-        startJointText + QString::fromUtf8(u8"\n工具负 Z 几何偏移：100 mm（须现场确认无碰撞）");
+    const QString orientationReview = input.useTaughtOrientation
+        ? QString::fromUtf8(u8"\n姿态模式：采用示教加工姿态（基座，°）\nRx=%1，Ry=%2，Rz=%3\n接近、入刀、加工和退刀均保持此朝向。")
+            .arg(input.taughtBaseRpyDeg[0], 0, 'f', 3)
+            .arg(input.taughtBaseRpyDeg[1], 0, 'f', 3).arg(input.taughtBaseRpyDeg[2], 0, 'f', 3)
+        : QString::fromUtf8(u8"\n姿态模式：采用轨迹姿态");
+    const QString fullReview = review + orientationReview + QString::fromUtf8(u8"\n工作起点关节（度）：") +
+        startJointText + QString::fromUtf8(u8"\n%1\n接近点和退刀点偏移：100 mm；入刀沿相反方向。\n最终退刀位移（基座，mm）：ΔX=%2，ΔY=%3，ΔZ=%4\n请核对此方向远离工件且路径无碰撞。")
+            .arg(m_harmoClearanceDirection->currentText())
+            .arg(plan.steps.back().target.x - lastMachining->target.x, 0, 'f', 3)
+            .arg(plan.steps.back().target.y - lastMachining->target.y, 0, 'f', 3)
+            .arg(plan.steps.back().target.z - lastMachining->target.z, 0, 'f', 3);
     if (QMessageBox::question(this, QString::fromUtf8(u8"确认 Harmo 加工坐标"), fullReview,
         QMessageBox::Yes | QMessageBox::No, QMessageBox::No) != QMessageBox::Yes) return;
 
@@ -1424,7 +1541,17 @@ void MainWindow::harmoRobotJiagong()
     ui->trackEdit_pushButton->setEnabled(false);
     m_harmoStopBtn->setEnabled(true);
     m_harmoCalibrationFrame->setEnabled(false);
+    m_harmoOrientationMode->setEnabled(false);
+    m_harmoTeachOrientationBtn->setEnabled(false);
+    m_harmoClearanceDirection->setEnabled(false);
     harmoRobot->beginDiagnosticRun(static_cast<int>(drawn.size()));
+    harmoRobot->logDiagnosticEvent("CLEARANCE_DIRECTION",
+        QString("tool_z_sign=%1 distance_mm=%2").arg(input.clearanceToolZSign).arg(input.clearanceMm));
+    harmoRobot->logDiagnosticEvent("ORIENTATION_MODE", input.useTaughtOrientation
+        ? QString("mode=taught base_RPY_deg=[%1,%2,%3]")
+            .arg(input.taughtBaseRpyDeg[0], 0, 'g', 12)
+            .arg(input.taughtBaseRpyDeg[1], 0, 'g', 12).arg(input.taughtBaseRpyDeg[2], 0, 'g', 12)
+        : QString("mode=track"));
     harmoRobot->logDiagnosticEvent("PLAN_READY", QString("capture=%1 frame=%2 track_count=%3 step_count=%4 work_speed=%5 baseFromCamera=")
         .arg(m_harmoCaptureId).arg(m_harmoCalibrationFrame->currentIndex())
         .arg(static_cast<qulonglong>(drawn.size())).arg(static_cast<qulonglong>(m_harmoSteps.size()))
@@ -1754,6 +1881,9 @@ void MainWindow::completeHarmoMotion(const QString& outcome, const QString& deta
     ui->trackEdit_pushButton->setEnabled(true);
     m_harmoStopBtn->setEnabled(false);
     m_harmoCalibrationFrame->setEnabled(true);
+    m_harmoOrientationMode->setEnabled(true);
+    m_harmoTeachOrientationBtn->setEnabled(true);
+    m_harmoClearanceDirection->setEnabled(true);
     if (outcome == "completed") {
         statusBar()->showMessage(QString::fromUtf8(u8"Harmo 加工完成；各步骤已核对状态与目标位姿。"), 15000);
     } else if (closeAfterStop) {

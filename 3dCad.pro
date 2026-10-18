@@ -88,6 +88,8 @@ DISTFILES += \
 # The bundled Windows dependencies and the VS x64 project are 64-bit. Use
 # an x64 Qt/MSVC kit; keep Debug and Release import libraries separate.
 win32 {
+    DEFINES += WIN32_LEAN_AND_MEAN NOMINMAX
+
     INCLUDEPATH += $$PWD/includes/glfw/include \
                    "$$PWD/includes/Intel RealSense SDK 2.0/include" \
                    $$PWD/includes/opencv/build/include \

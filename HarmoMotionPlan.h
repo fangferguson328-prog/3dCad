@@ -58,7 +58,13 @@ struct PlanInput {
     std::array<double, 6> startJointsDeg;
     std::vector<CameraTrack> tracks;
     double clearanceMm;
-    PlanInput() : clearanceMm(100.0) { startJointsDeg.fill(0.0); }
+    int clearanceToolZSign; // +1 or -1: direction away from the workpiece.
+    // Fixed machining orientation expressed in BASE, never in the camera frame.
+    // Applies to approach, entry, machining (including arc via), and retract.
+    bool useTaughtOrientation;
+    std::array<double, 3> taughtBaseRpyDeg;
+    PlanInput() : clearanceMm(100.0), clearanceToolZSign(-1), useTaughtOrientation(false),
+        taughtBaseRpyDeg{{0, 0, 0}} { startJointsDeg.fill(0.0); }
 };
 
 // Euler angles use R = Rz(rz) * Ry(ry) * Rx(rx), in degrees. Compiled steps

@@ -1096,6 +1096,10 @@
     <None Include="shaders\vertexshader.vsh" />
     <None Include="shaders\fragmentshader.fsh" />
     <None Include="shaders\vertexshader.vsh" />
+    <None Include="shaders\fragmentshader.fsh" />
+    <None Include="shaders\vertexshader.vsh" />
+    <None Include="shaders\fragmentshader.fsh" />
+    <None Include="shaders\vertexshader.vsh" />
   </ItemGroup>
   <ItemGroup>
     <None Include="shaders\fragmentshader.fsh">

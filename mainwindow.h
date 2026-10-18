@@ -22,6 +22,7 @@
 class DrawingCanvas;
 class QPushButton;
 class QComboBox;
+class QLabel;
 class QCloseEvent;
 
 using namespace RobotAPI;
@@ -113,6 +114,14 @@ private:
     cv::Mat m_harmoBaseFromCameraAtCapture;
     bool m_harmoCaptureValid = false;
     QComboBox* m_harmoCalibrationFrame = nullptr;
+    QComboBox* m_harmoOrientationMode = nullptr;
+    QComboBox* m_harmoClearanceDirection = nullptr;
+    QPushButton* m_harmoTeachOrientationBtn = nullptr;
+    QLabel* m_harmoTaughtOrientationLabel = nullptr;
+    bool m_harmoTaughtOrientationValid = false;
+    bool m_harmoTeachingOrientation = false;
+    RobotPose m_harmoTaughtOrientation;
+    RobotPose m_harmoTaughtTcp;
     QPushButton* m_harmoStopBtn = nullptr;
     QTimer* m_harmoMotionTimer = nullptr;
     QElapsedTimer m_harmoStepElapsed;
@@ -190,6 +199,7 @@ private slots:
     void trackFit();                        //轨迹拟合
    
     void harmoRobotJiagong(); //海默机器人加工
+    void recordHarmoMachiningOrientation();
     void startNextHarmoStep();
     void pollHarmoMotion();
     void finishHarmoMotion(const QString& outcome, bool sendStop);
